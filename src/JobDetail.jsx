@@ -47,11 +47,20 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
     };
   }, [api, auth.accessToken, id]);
 
+  const currentIndex = useMemo(
+    () => jobs.findIndex((item) => String(item.uploadId) === String(id)),
+    [id, jobs],
+  );
+
+  const previousJob = useMemo(() => {
+    if (currentIndex === -1) return null;
+    return jobs[currentIndex - 1] || null;
+  }, [currentIndex, jobs]);
+
   const nextJob = useMemo(() => {
-    const currentIndex = jobs.findIndex((item) => String(item.uploadId) === String(id));
     if (currentIndex === -1) return null;
     return jobs[currentIndex + 1] || null;
-  }, [id, jobs]);
+  }, [currentIndex, jobs]);
 
   useEffect(() => {
     if (!job?.uploadId) {
@@ -168,14 +177,28 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
         </main>
       </div>
 
-      {nextJob && (
-        <button
-          className="floating-next-button"
-          type="button"
-          onClick={() => navigate(`/jobs/${nextJob.uploadId}`)}
-        >
-          Next job
-        </button>
+      {(previousJob || nextJob) && (
+        <div className="floating-job-nav">
+          {previousJob && (
+            <button
+              className="floating-nav-button secondary"
+              type="button"
+              onClick={() => navigate(`/jobs/${previousJob.uploadId}`)}
+            >
+              Previous job
+            </button>
+          )}
+
+          {nextJob && (
+            <button
+              className="floating-nav-button primary"
+              type="button"
+              onClick={() => navigate(`/jobs/${nextJob.uploadId}`)}
+            >
+              Next job
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

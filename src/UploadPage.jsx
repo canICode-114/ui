@@ -31,11 +31,6 @@ function UploadPage({ auth, api, onLogout, theme, onThemeToggle }) {
         token: auth.accessToken,
       });
 
-      if (result.uploadId) {
-        navigate(`/jobs/${result.uploadId}`);
-        return;
-      }
-
       navigate('/jobs');
     } catch (nextError) {
       setError(nextError.message);

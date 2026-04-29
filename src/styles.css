@@ -132,6 +132,14 @@ button {
   margin-bottom: 24px;
 }
 
+.landing-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .landing-brand p {
   margin: 4px 0 0;
 }
@@ -679,18 +687,32 @@ input {
   color: #8b2f28;
 }
 
-.floating-next-button {
+.floating-job-nav {
   position: fixed;
-  right: 28px;
   bottom: 24px;
+  right: 28px;
   z-index: 12;
+  display: flex;
+  gap: 12px;
+}
+
+.floating-nav-button {
   border: none;
   border-radius: 999px;
   padding: 14px 20px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #1b140d;
   font-weight: 700;
   box-shadow: var(--shadow);
+}
+
+.floating-nav-button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #1b140d;
+}
+
+.floating-nav-button.secondary {
+  background: var(--panel-strong);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 @media (max-width: 1100px) {
@@ -740,6 +762,14 @@ input {
     align-items: stretch;
   }
 
+  .landing-topbar-actions {
+    justify-content: stretch;
+  }
+
+  .landing-topbar-actions > * {
+    width: 100%;
+  }
+
   .floating-theme-toggle {
     position: static;
     padding: 0 16px;
@@ -758,10 +788,15 @@ input {
     padding: 22px;
   }
 
-  .floating-next-button {
+  .floating-job-nav {
     left: 16px;
     right: 16px;
     bottom: 16px;
+    justify-content: stretch;
+  }
+
+  .floating-nav-button {
+    flex: 1;
   }
 
   .jobs-table th,

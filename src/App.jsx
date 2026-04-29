@@ -66,7 +66,13 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={<LandingPage auth={auth} />}
+          element={
+            <LandingPage
+              auth={auth}
+              theme={theme}
+              onThemeToggle={handleThemeToggle}
+            />
+          }
         />
         <Route
           path="/auth"

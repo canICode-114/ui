@@ -1,6 +1,7 @@
 import { Link, Navigate } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle.jsx';
 
-function LandingPage({ auth }) {
+function LandingPage({ auth, theme, onThemeToggle }) {
   if (auth) {
     return <Navigate to="/jobs" replace />;
   }
@@ -19,9 +20,12 @@ function LandingPage({ auth }) {
           </div>
         </div>
 
-        <Link className="primary-button button-link" to="/auth">
-          Login / Signup
-        </Link>
+        <div className="landing-topbar-actions">
+          <ThemeToggle theme={theme} onToggle={onThemeToggle} />
+          <Link className="primary-button button-link" to="/auth">
+            Login / Signup
+          </Link>
+        </div>
       </header>
 
       <main className="landing-layout">

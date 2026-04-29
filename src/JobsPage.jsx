@@ -139,10 +139,6 @@ function JobsPage({ auth, api, onLogout, theme, onThemeToggle, settings, setSett
             saveSettings(nextSettings);
             setSettings(nextSettings);
             setShowUploadModal(false);
-            if (result.uploadId) {
-              navigate(`/jobs/${result.uploadId}`);
-              return;
-            }
             navigate('/jobs');
           }}
         />
