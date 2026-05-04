@@ -623,14 +623,59 @@ input {
   gap: 18px;
 }
 
+.detail-layout-wide {
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.75fr);
+  align-items: start;
+}
+
 .detail-panel {
   min-height: 76vh;
+}
+
+.detail-preview-panel {
+  padding-bottom: 18px;
+}
+
+.detail-data-panel {
+  position: sticky;
+  top: 20px;
 }
 
 .detail-meta {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 14px;
+}
+
+.detail-page-header {
+  align-items: center;
+}
+
+.detail-page-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.detail-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.detail-panel-header h3 {
+  margin: 0;
+}
+
+.detail-data-header {
+  align-items: center;
+}
+
+.detail-subcopy {
+  margin: 8px 0 0;
+  color: var(--muted);
 }
 
 .file-preview,
@@ -644,6 +689,151 @@ input {
 
 .image-preview {
   object-fit: contain;
+}
+
+.document-viewer {
+  position: relative;
+  min-height: 78vh;
+  height: clamp(78vh, 86vh, 960px);
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent 35%),
+    rgba(7, 10, 14, 0.9);
+}
+
+.document-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: top left;
+  transition: transform 220ms ease;
+}
+
+.pdf-canvas,
+.image-stage {
+  display: block;
+  border-radius: 18px;
+}
+
+.image-stage {
+  max-width: none;
+}
+
+.bbox-highlight {
+  position: absolute;
+  border-radius: 12px;
+  border: 2px solid currentColor;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  box-shadow: 0 0 0 9999px rgba(5, 8, 12, 0.12);
+  pointer-events: none;
+}
+
+.page-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.page-pill .icon-button {
+  width: 34px;
+  height: 34px;
+}
+
+.field-list {
+  display: grid;
+  gap: 12px;
+}
+
+.field-row {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.field-row:hover,
+.field-row:focus-visible,
+.field-row.active {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.18);
+  outline: none;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.field-value {
+  font-size: 1.02rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.confidence-high {
+  color: var(--green);
+}
+
+.confidence-medium {
+  color: var(--accent-strong);
+}
+
+.confidence-low {
+  color: var(--danger);
+}
+
+.confidence-unknown {
+  color: var(--muted);
+}
+
+.field-row.confidence-high {
+  border-color: rgba(130, 220, 177, 0.32);
+  background: rgba(130, 220, 177, 0.08);
+}
+
+.field-row.confidence-medium {
+  border-color: rgba(241, 173, 98, 0.32);
+  background: rgba(241, 173, 98, 0.08);
+}
+
+.field-row.confidence-low {
+  border-color: rgba(240, 142, 133, 0.3);
+  background: rgba(240, 142, 133, 0.08);
+}
+
+.field-row.confidence-unknown {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.json-view {
+  margin: 0;
+  min-height: 62vh;
+  overflow: auto;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 
 .preview-placeholder,
@@ -727,6 +917,10 @@ input {
   .sidebar {
     order: 2;
   }
+
+  .detail-data-panel {
+    position: static;
+  }
 }
 
 @media (max-width: 720px) {
@@ -747,6 +941,12 @@ input {
   }
 
   .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .detail-page-title,
+  .detail-panel-header {
     flex-direction: column;
     align-items: stretch;
   }
@@ -786,6 +986,18 @@ input {
 
   .modal-card {
     padding: 22px;
+  }
+
+  .sidebar-drawer {
+    left: 16px;
+    top: 16px;
+    bottom: 16px;
+    width: min(300px, calc(100vw - 32px));
+  }
+
+  .document-viewer {
+    min-height: 68vh;
+    height: 72vh;
   }
 
   .floating-job-nav {

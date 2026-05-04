@@ -57,6 +57,12 @@ export function createApi(config) {
       });
       return parseResponse(response);
     },
+    async getJobOcrPages(uploadId, token) {
+      const response = await fetch(`${ocrBase}/api/jobs/${uploadId}/ocr-pages`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return parseResponse(response);
+    },
     async uploadInvoice({ file, useLocalOcr, token }) {
       const form = new FormData();
       form.append('file', file);
