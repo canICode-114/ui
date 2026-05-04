@@ -21,21 +21,6 @@ const FIELD_LABELS = {
   total_value: 'Total Value',
 };
 
-const FIELD_ORDER = [
-  'invoice_number',
-  'invoice_date',
-  'seller_name',
-  'seller_gstin',
-  'buyer_name',
-  'buyer_gstin',
-  'place_of_supply',
-  'taxable_value',
-  'cgst',
-  'sgst',
-  'igst',
-  'total_value',
-];
-
 function parseJobResult(json) {
   if (!json) return null;
 
@@ -75,15 +60,6 @@ function formatLabel(key) {
   );
 }
 
-function normalizeFieldValue(value) {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'string') {
-    return value.trim() ? value : null;
-  }
-
-  return String(value);
-}
-
 function getExtractedFields(result) {
   if (!result || typeof result !== 'object') return [];
 
@@ -92,26 +68,13 @@ function getExtractedFields(result) {
     .map(([key, field]) => ({
       key,
       label: formatLabel(key),
-      value: normalizeFieldValue(field.value),
-      displayValue: normalizeFieldValue(field.value) ?? 'null',
-      hasValue: normalizeFieldValue(field.value) !== null,
+      value: field.value,
       confidence: typeof field.confidence_value === 'number' ? field.confidence_value : null,
       bbox: field.bbox_value || null,
       page: field.value_location?.page || 1,
       location: field.value_location || null,
     }))
-    .sort((left, right) => {
-      const leftIndex = FIELD_ORDER.indexOf(left.key);
-      const rightIndex = FIELD_ORDER.indexOf(right.key);
-      const safeLeftIndex = leftIndex === -1 ? FIELD_ORDER.length : leftIndex;
-      const safeRightIndex = rightIndex === -1 ? FIELD_ORDER.length : rightIndex;
-
-      if (safeLeftIndex !== safeRightIndex) {
-        return safeLeftIndex - safeRightIndex;
-      }
-
-      return left.label.localeCompare(right.label);
-    });
+    .filter((field) => field.value);
 }
 
 function getConfidenceTone(confidence) {
@@ -644,15 +607,11 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
                           onMouseEnter={() => setActiveFieldKey(field.key)}
                           onFocus={() => setActiveFieldKey(field.key)}
                         >
-                          <span className="field-heading">
-                            <span className="field-label">{field.label}</span>
-                            <span className="field-meta">
-                              {hasPreviewBbox ? <span className="field-zoom-badge">Zoom</span> : null}
-                            </span>
+                          <span className="field-label">
+                            {field.label}
+                            {hasPreviewBbox ? <span className="field-zoom-badge">Zoom</span> : null}
                           </span>
-                          <span className={`field-surface ${field.hasValue ? '' : 'is-null'}`.trim()}>
-                            <span className="field-value">{field.displayValue}</span>
-                          </span>
+                          <span className="field-value">{field.value}</span>
                         </button>
                       );
                     })}
