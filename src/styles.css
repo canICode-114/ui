@@ -67,7 +67,8 @@ button {
 .screen {
   min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: auto;
 }
 
 .bg-orb {
@@ -103,9 +104,11 @@ button {
 
 .shell {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 20px;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
   padding: 20px;
 }
 
@@ -236,6 +239,7 @@ button {
 
 .content {
   padding: 6px 0;
+  min-width: 0;
 }
 
 .page-header {
@@ -624,12 +628,13 @@ input {
 }
 
 .detail-layout-wide {
-  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.75fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 400px);
   align-items: start;
 }
 
 .detail-panel {
   min-height: 76vh;
+  min-width: 0;
 }
 
 .detail-preview-panel {
@@ -709,6 +714,7 @@ input {
   top: 0;
   transform-origin: top left;
   transition: transform 220ms ease;
+  will-change: transform;
 }
 
 .pdf-canvas,
@@ -723,11 +729,21 @@ input {
 
 .bbox-highlight {
   position: absolute;
+  /*border-radius: 18px;*/
+  /*border: none;*/
+  /*background: color-mix(in srgb, currentColor 12%, transparent);*/
+  /*box-shadow:*/
+  /*  0 0 0 9999px rgba(5, 8, 12, 0.14),*/
+  /*  0 0 0 1px color-mix(in srgb, currentColor 22%, transparent) inset,*/
+  /*  0 0 28px color-mix(in srgb, currentColor 28%, transparent);*/
+  /*opacity: 0.72;*/
+  /*backdrop-filter: saturate(1.06);*/
   border-radius: 12px;
   border: 2px solid currentColor;
   background: color-mix(in srgb, currentColor 18%, transparent);
   box-shadow: 0 0 0 9999px rgba(5, 8, 12, 0.12);
   pointer-events: none;
+  /*transition: left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease, opacity 180ms ease;*/
 }
 
 .page-pill {
@@ -772,10 +788,24 @@ input {
 }
 
 .field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
+}
+
+.field-zoom-badge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
 }
 
 .field-value {

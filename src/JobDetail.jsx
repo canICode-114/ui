@@ -21,6 +21,21 @@ const FIELD_LABELS = {
   total_value: 'Total Value',
 };
 
+const FIELD_ORDER = [
+  'invoice_number',
+  'invoice_date',
+  'seller_name',
+  'seller_gstin',
+  'buyer_name',
+  'buyer_gstin',
+  'place_of_supply',
+  'taxable_value',
+  'cgst',
+  'sgst',
+  'igst',
+  'total_value',
+];
+
 function parseJobResult(json) {
   if (!json) return null;
 
@@ -60,6 +75,15 @@ function formatLabel(key) {
   );
 }
 
+function normalizeFieldValue(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') {
+    return value.trim() ? value : null;
+  }
+
+  return String(value);
+}
+
 function getExtractedFields(result) {
   if (!result || typeof result !== 'object') return [];
 
@@ -68,13 +92,26 @@ function getExtractedFields(result) {
     .map(([key, field]) => ({
       key,
       label: formatLabel(key),
-      value: field.value,
+      value: normalizeFieldValue(field.value),
+      displayValue: normalizeFieldValue(field.value) ?? 'null',
+      hasValue: normalizeFieldValue(field.value) !== null,
       confidence: typeof field.confidence_value === 'number' ? field.confidence_value : null,
       bbox: field.bbox_value || null,
       page: field.value_location?.page || 1,
       location: field.value_location || null,
     }))
-    .filter((field) => field.value);
+    .sort((left, right) => {
+      const leftIndex = FIELD_ORDER.indexOf(left.key);
+      const rightIndex = FIELD_ORDER.indexOf(right.key);
+      const safeLeftIndex = leftIndex === -1 ? FIELD_ORDER.length : leftIndex;
+      const safeRightIndex = rightIndex === -1 ? FIELD_ORDER.length : rightIndex;
+
+      if (safeLeftIndex !== safeRightIndex) {
+        return safeLeftIndex - safeRightIndex;
+      }
+
+      return left.label.localeCompare(right.label);
+    });
 }
 
 function getConfidenceTone(confidence) {
@@ -103,6 +140,20 @@ function scaleBboxToRenderedSize(bbox, pageInfo, renderedSize) {
     yMin: bbox.yMin * scaleY,
     xMax: bbox.xMax * scaleX,
     yMax: bbox.yMax * scaleY,
+  };
+}
+
+function expandBbox(bbox, contentSize, padding = 10) {
+  if (!hasUsableBbox(bbox)) return null;
+
+  const maxWidth = contentSize?.width || Number.POSITIVE_INFINITY;
+  const maxHeight = contentSize?.height || Number.POSITIVE_INFINITY;
+
+  return {
+    xMin: clamp(bbox.xMin - padding, 0, maxWidth),
+    yMin: clamp(bbox.yMin - padding, 0, maxHeight),
+    xMax: clamp(bbox.xMax + padding, 0, maxWidth),
+    yMax: clamp(bbox.yMax + padding, 0, maxHeight),
   };
 }
 
@@ -143,11 +194,26 @@ function clamp(value, min, max) {
 }
 
 function getStageTransform(viewportSize, contentSize, bbox) {
-  if (!viewportSize.width || !viewportSize.height || !contentSize.width || !contentSize.height || !hasUsableBbox(bbox)) {
+  if (!viewportSize.width || !viewportSize.height || !contentSize.width || !contentSize.height) {
     return {
       scale: 1,
       translateX: 0,
       translateY: 0,
+    };
+  }
+
+  const framePadding = 20;
+  const fittedWidth = Math.max(viewportSize.width - framePadding * 2, 1);
+  const fittedHeight = Math.max(viewportSize.height - framePadding * 2, 1);
+  const baseScale = Math.min(fittedWidth / contentSize.width, fittedHeight / contentSize.height);
+  const centeredTranslateX = (viewportSize.width - contentSize.width * baseScale) / 2;
+  const centeredTranslateY = (viewportSize.height - contentSize.height * baseScale) / 2;
+
+  if (!hasUsableBbox(bbox)) {
+    return {
+      scale: baseScale,
+      translateX: centeredTranslateX,
+      translateY: centeredTranslateY,
     };
   }
 
@@ -156,18 +222,22 @@ function getStageTransform(viewportSize, contentSize, bbox) {
   const bboxCenterX = bbox.xMin + bboxWidth / 2;
   const bboxCenterY = bbox.yMin + bboxHeight / 2;
 
-  const zoomX = viewportSize.width / (bboxWidth * 2.5);
-  const zoomY = viewportSize.height / (bboxHeight * 2.5);
-  const scale = clamp(Math.min(zoomX, zoomY), 1, 2.8);
-  const translateX = viewportSize.width / 2 - bboxCenterX * scale;
-  const translateY = viewportSize.height / 2 - bboxCenterY * scale;
-  const minX = viewportSize.width - contentSize.width * scale;
-  const minY = viewportSize.height - contentSize.height * scale;
+  const zoomX = fittedWidth / (bboxWidth * 1.9);
+  const zoomY = fittedHeight / (bboxHeight * 2.2);
+  const scale = clamp(Math.min(zoomX, zoomY), baseScale, Math.max(baseScale, 3.6));
+  const rawTranslateX = viewportSize.width / 2 - bboxCenterX * scale;
+  const rawTranslateY = viewportSize.height / 2 - bboxCenterY * scale;
+  const scaledWidth = contentSize.width * scale;
+  const scaledHeight = contentSize.height * scale;
+  const minX = Math.min(viewportSize.width - scaledWidth - framePadding, centeredTranslateX);
+  const maxX = Math.max(framePadding, centeredTranslateX);
+  const minY = Math.min(viewportSize.height - scaledHeight - framePadding, centeredTranslateY);
+  const maxY = Math.max(framePadding, centeredTranslateY);
 
   return {
     scale,
-    translateX: clamp(translateX, minX, 0),
-    translateY: clamp(translateY, minY, 0),
+    translateX: clamp(rawTranslateX, minX, maxX),
+    translateY: clamp(rawTranslateY, minY, maxY),
   };
 }
 
@@ -268,7 +338,7 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
     observer.observe(viewerRef.current);
 
     return () => observer.disconnect();
-  }, []);
+  }, [previewUrl, job?.filePath, job?.fileName]);
 
   const result = useMemo(() => parseJobResult(job?.resultJson), [job?.resultJson]);
   const rawJson = useMemo(() => formatRawJson(job?.resultJson), [job?.resultJson]);
@@ -370,7 +440,10 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
     return mergeWordBoxesForLocation(activeField.location, activePageInfo) || activeField.bbox || null;
   }, [activeField, activePage, activePageInfo]);
   const contentSize = fileType === 'pdf' ? pdfPageSize : imageSize;
-  const renderedActiveBbox = scaleBboxToRenderedSize(activeBbox, activePageInfo, contentSize);
+  const renderedActiveBbox = useMemo(() => {
+    const scaledBbox = scaleBboxToRenderedSize(activeBbox, activePageInfo, contentSize);
+    return expandBbox(scaledBbox, contentSize, 12);
+  }, [activeBbox, activePageInfo, contentSize]);
   const stageTransform = getStageTransform(viewerSize, contentSize, renderedActiveBbox);
 
   return (
@@ -553,6 +626,15 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
                     {extractedFields.map((field) => {
                       const tone = getConfidenceTone(field.confidence);
                       const isActive = field.key === activeFieldKey;
+                      const hasPreviewBbox =
+                        field.page === activePage &&
+                        hasUsableBbox(
+                          scaleBboxToRenderedSize(
+                            mergeWordBoxesForLocation(field.location, activePageInfo) || field.bbox || null,
+                            activePageInfo,
+                            contentSize,
+                          ),
+                        );
 
                       return (
                         <button
@@ -562,8 +644,15 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
                           onMouseEnter={() => setActiveFieldKey(field.key)}
                           onFocus={() => setActiveFieldKey(field.key)}
                         >
-                          <span className="field-label">{field.label}</span>
-                          <span className="field-value">{field.value}</span>
+                          <span className="field-heading">
+                            <span className="field-label">{field.label}</span>
+                            <span className="field-meta">
+                              {hasPreviewBbox ? <span className="field-zoom-badge">Zoom</span> : null}
+                            </span>
+                          </span>
+                          <span className={`field-surface ${field.hasValue ? '' : 'is-null'}`.trim()}>
+                            <span className="field-value">{field.displayValue}</span>
+                          </span>
                         </button>
                       );
                     })}
