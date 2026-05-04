@@ -73,8 +73,13 @@ function getExtractedFields(result) {
       bbox: field.bbox_value || null,
       page: field.value_location?.page || 1,
       location: field.value_location || null,
-    }))
-    .filter((field) => field.value);
+    }));
+}
+
+function formatFieldValue(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return '';
+  return String(value);
 }
 
 function getConfidenceTone(confidence) {
@@ -611,7 +616,7 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
                             {field.label}
                             {hasPreviewBbox ? <span className="field-zoom-badge">Zoom</span> : null}
                           </span>
-                          <span className="field-value">{field.value}</span>
+                          <span className="field-value">{formatFieldValue(field.value)}</span>
                         </button>
                       );
                     })}
