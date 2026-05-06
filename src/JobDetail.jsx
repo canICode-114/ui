@@ -71,8 +71,7 @@ function getExtractedFields(result) {
       value: field.value,
       confidence: typeof field.confidence_value === 'number' ? field.confidence_value : null,
       bbox: field.bbox_value || null,
-      page: field.value_location?.page || 1,
-      location: field.value_location || null,
+      page: Number.isInteger(field.page) ? field.page : null,
     }));
 }
 
@@ -123,38 +122,6 @@ function expandBbox(bbox, contentSize, padding = 10) {
     xMax: clamp(bbox.xMax + padding, 0, maxWidth),
     yMax: clamp(bbox.yMax + padding, 0, maxHeight),
   };
-}
-
-function mergeWordBoxesForLocation(location, pageInfo) {
-  if (!location || !pageInfo?.words?.length) return null;
-
-  const startIndex = location.start_word_index;
-  const endIndex = location.end_word_index;
-  if (!Number.isInteger(startIndex) || !Number.isInteger(endIndex) || startIndex < 0 || endIndex < startIndex) {
-    return null;
-  }
-
-  const selectedWords = pageInfo.words.slice(startIndex, endIndex + 1).filter((word) => word);
-  if (!selectedWords.length) return null;
-
-  let xMin = Number.POSITIVE_INFINITY;
-  let yMin = Number.POSITIVE_INFINITY;
-  let xMax = Number.NEGATIVE_INFINITY;
-  let yMax = Number.NEGATIVE_INFINITY;
-  let usableCount = 0;
-
-  selectedWords.forEach((word) => {
-    if (!hasUsableBbox(word)) return;
-    xMin = Math.min(xMin, word.xMin);
-    yMin = Math.min(yMin, word.yMin);
-    xMax = Math.max(xMax, word.xMax);
-    yMax = Math.max(yMax, word.yMax);
-    usableCount += 1;
-  });
-
-  if (!usableCount) return null;
-
-  return { xMin, yMin, xMax, yMax };
 }
 
 function clamp(value, min, max) {
@@ -329,7 +296,7 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
   );
 
   useEffect(() => {
-    if (activeField?.page) {
+    if (Number.isInteger(activeField?.page)) {
       setActivePage(activeField.page);
     }
   }, [activeField]);
@@ -404,9 +371,10 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
     [activePage, ocrPages],
   );
   const activeBbox = useMemo(() => {
-    if (!activeField || activeField.page !== activePage) return null;
-    return mergeWordBoxesForLocation(activeField.location, activePageInfo) || activeField.bbox || null;
-  }, [activeField, activePage, activePageInfo]);
+    if (!activeField || !hasUsableBbox(activeField.bbox)) return null;
+    if (Number.isInteger(activeField.page) && activeField.page !== activePage) return null;
+    return activeField.bbox;
+  }, [activeField, activePage]);
   const contentSize = fileType === 'pdf' ? pdfPageSize : imageSize;
   const renderedActiveBbox = useMemo(() => {
     const scaledBbox = scaleBboxToRenderedSize(activeBbox, activePageInfo, contentSize);
@@ -595,10 +563,10 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
                       const tone = getConfidenceTone(field.confidence);
                       const isActive = field.key === activeFieldKey;
                       const hasPreviewBbox =
-                        field.page === activePage &&
+                        (!Number.isInteger(field.page) || field.page === activePage) &&
                         hasUsableBbox(
                           scaleBboxToRenderedSize(
-                            mergeWordBoxesForLocation(field.location, activePageInfo) || field.bbox || null,
+                            field.bbox || null,
                             activePageInfo,
                             contentSize,
                           ),
