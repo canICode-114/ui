@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle.jsx';
+import { useNavigate } from 'react-router-dom';
+import AppSidebar from './AppSidebar.jsx';
 import UploadModal from './UploadModal.jsx';
 import { saveSettings } from './lib/storage.js';
 
@@ -14,7 +14,17 @@ function formatDate(value) {
   }).format(date);
 }
 
-function JobsPage({ auth, api, onLogout, theme, onThemeToggle, settings, setSettings }) {
+function JobsPage({
+  auth,
+  api,
+  onLogout,
+  settings,
+  setSettings,
+  sidebarExpanded,
+  setSidebarExpanded,
+  themeMode,
+  onThemeModeChange,
+}) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,30 +64,19 @@ function JobsPage({ auth, api, onLogout, theme, onThemeToggle, settings, setSett
       <div className="bg-orb bg-orb-a" />
       <div className="bg-orb bg-orb-b" />
 
-      <div className="shell">
-        <aside className="sidebar card">
-          <div className="brand">
-            <span className="brand-mark">IF</span>
-            <div>
-              <strong>InvoiceFlow</strong>
-              <p>{auth.username}</p>
-            </div>
-          </div>
+      <div className={sidebarExpanded ? 'workspace-shell sidebar-expanded' : 'workspace-shell sidebar-collapsed'}>
+        <AppSidebar
+          auth={auth}
+          active="jobs"
+          expanded={sidebarExpanded}
+          onUpload={() => setShowUploadModal(true)}
+          onLogout={onLogout}
+          onExpandedChange={setSidebarExpanded}
+          themeMode={themeMode}
+          onThemeModeChange={onThemeModeChange}
+        />
 
-          <nav className="nav-stack">
-            <Link className="nav-link active" to="/jobs">
-              Jobs
-            </Link>
-          </nav>
-
-          <ThemeToggle theme={theme} onToggle={onThemeToggle} />
-          <div className="sidebar-spacer" />
-          <button className="ghost-button" onClick={onLogout}>
-            Sign out
-          </button>
-        </aside>
-
-        <main className="content">
+        <main className="workspace-content">
           <header className="page-header">
             <div>
               <span className="eyebrow">Jobs page</span>

@@ -14,6 +14,37 @@ import {
   saveSettings,
 } from './lib/storage.js';
 
+function getSystemTheme() {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  return 'dark';
+}
+
+function getInitialThemeMode(storedSettings) {
+  if (storedSettings?.themeMode === 'dark' || storedSettings?.themeMode === 'light' || storedSettings?.themeMode === 'system') {
+    return storedSettings.themeMode;
+  }
+
+  if (storedSettings?.theme === 'dark' || storedSettings?.theme === 'light') {
+    return storedSettings.theme;
+  }
+
+  return 'system';
+}
+
+const SIDEBAR_STATE_KEY = 'invoiceflow.sidebar.expanded';
+
+function readSidebarExpanded() {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+
+  const raw = window.sessionStorage.getItem(SIDEBAR_STATE_KEY);
+  return raw === null ? true : raw === 'true';
+}
+
 function ProtectedRoute({ auth, children }) {
   if (!auth) {
     return <Navigate to="/" replace />;
@@ -23,38 +54,79 @@ function ProtectedRoute({ auth, children }) {
 }
 
 function App() {
+  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
   const [settings, setSettings] = useState(() => {
+    const storedSettings = readSettings();
     const nextSettings = {
       ...defaultSettings,
-      ...readSettings(),
+      ...storedSettings,
+      themeMode: getInitialThemeMode(storedSettings),
     };
     saveSettings(nextSettings);
     return nextSettings;
   });
+  const [sidebarExpanded, setSidebarExpanded] = useState(readSidebarExpanded);
 
   const api = useMemo(() => createApi(settings), [settings]);
   const auth = readAuth();
-  const theme = settings.theme || 'dark';
+  const theme = settings.themeMode === 'dark' || settings.themeMode === 'light' ? settings.themeMode : systemTheme;
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.sessionStorage.setItem(SIDEBAR_STATE_KEY, String(sidebarExpanded));
+  }, [sidebarExpanded]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function syncTheme(event) {
+      setSystemTheme(event.matches ? 'dark' : 'light');
+    }
+
+    syncTheme(mediaQuery);
+    mediaQuery.addEventListener('change', syncTheme);
+
+    return () => mediaQuery.removeEventListener('change', syncTheme);
+  }, []);
+
   function handleAuthSuccess(session) {
     saveAuth(session);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(SIDEBAR_STATE_KEY, 'true');
+    }
+    setSidebarExpanded(true);
     window.location.href = '/jobs';
   }
 
   function handleLogout() {
     clearAuth();
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(SIDEBAR_STATE_KEY);
+    }
+    setSidebarExpanded(true);
     window.location.href = '/';
   }
 
-  function handleThemeToggle() {
+  function handleThemeModeChange(nextThemeMode) {
     setSettings((current) => {
+      if (current.themeMode === nextThemeMode) {
+        return current;
+      }
+
       const nextSettings = {
         ...current,
-        theme: current.theme === 'light' ? 'dark' : 'light',
+        themeMode: nextThemeMode,
       };
       saveSettings(nextSettings);
       return nextSettings;
@@ -68,9 +140,9 @@ function App() {
           path="/"
           element={
             <LandingPage
+              api={api}
               auth={auth}
-              theme={theme}
-              onThemeToggle={handleThemeToggle}
+              onAuthSuccess={handleAuthSuccess}
             />
           }
         />
@@ -81,8 +153,6 @@ function App() {
               api={api}
               auth={auth}
               onAuthSuccess={handleAuthSuccess}
-              theme={theme}
-              onThemeToggle={handleThemeToggle}
             />
           }
         />
@@ -94,8 +164,6 @@ function App() {
                 auth={auth}
                 api={api}
                 onLogout={handleLogout}
-                theme={theme}
-                onThemeToggle={handleThemeToggle}
                 settings={settings}
               />
             </ProtectedRoute>
@@ -109,10 +177,12 @@ function App() {
                 auth={auth}
                 api={api}
                 onLogout={handleLogout}
-                theme={theme}
-                onThemeToggle={handleThemeToggle}
                 settings={settings}
                 setSettings={setSettings}
+                sidebarExpanded={sidebarExpanded}
+                setSidebarExpanded={setSidebarExpanded}
+                themeMode={settings.themeMode}
+                onThemeModeChange={handleThemeModeChange}
               />
             </ProtectedRoute>
           }
@@ -125,8 +195,12 @@ function App() {
                 auth={auth}
                 api={api}
                 onLogout={handleLogout}
-                theme={theme}
-                onThemeToggle={handleThemeToggle}
+                settings={settings}
+                setSettings={setSettings}
+                sidebarExpanded={sidebarExpanded}
+                setSidebarExpanded={setSidebarExpanded}
+                themeMode={settings.themeMode}
+                onThemeModeChange={handleThemeModeChange}
               />
             </ProtectedRoute>
           }

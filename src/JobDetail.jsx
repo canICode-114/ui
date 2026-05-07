@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import ThemeToggle from './ThemeToggle.jsx';
+import AppSidebar from './AppSidebar.jsx';
+import UploadModal from './UploadModal.jsx';
+import { saveSettings } from './lib/storage.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -148,7 +150,17 @@ function getStageTransform(viewportSize, contentSize, bbox) {
   };
 }
 
-function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
+function JobDetail({
+  auth,
+  api,
+  onLogout,
+  settings,
+  setSettings,
+  sidebarExpanded,
+  setSidebarExpanded,
+  themeMode,
+  onThemeModeChange,
+}) {
   const { id } = useParams();
   const navigate = useNavigate();
   const viewerRef = useRef(null);
@@ -167,6 +179,7 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
   const [draftValues, setDraftValues] = useState({});
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -412,30 +425,19 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
       <div className="bg-orb bg-orb-a" />
       <div className="bg-orb bg-orb-b" />
 
-      <div className="shell">
-        <aside className="sidebar card">
-          <div className="brand">
-            <span className="brand-mark">IF</span>
-            <div>
-              <strong>InvoiceFlow</strong>
-              <p>{auth.username}</p>
-            </div>
-          </div>
+      <div className={sidebarExpanded ? 'workspace-shell sidebar-expanded' : 'workspace-shell sidebar-collapsed'}>
+        <AppSidebar
+          auth={auth}
+          active="review"
+          expanded={sidebarExpanded}
+          onUpload={() => setShowUploadModal(true)}
+          onLogout={onLogout}
+          onExpandedChange={setSidebarExpanded}
+          themeMode={themeMode}
+          onThemeModeChange={onThemeModeChange}
+        />
 
-          <nav className="nav-stack">
-            <Link className="nav-link active" to="/jobs">
-              Jobs
-            </Link>
-          </nav>
-
-          <ThemeToggle theme={theme} onToggle={onThemeToggle} />
-          <div className="sidebar-spacer" />
-          <button className="ghost-button" type="button" onClick={onLogout}>
-            Sign out
-          </button>
-        </aside>
-
-        <main className="content">
+        <main className="workspace-content">
           <header className="page-header detail-page-header">
             <div className="detail-page-title">
               <div>
@@ -695,6 +697,25 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
             </button>
           )}
         </div>
+      )}
+
+      {showUploadModal && (
+        <UploadModal
+          auth={auth}
+          api={api}
+          defaultUseLocalOcr={settings.useLocalOcr ?? true}
+          onClose={() => setShowUploadModal(false)}
+          onUploadComplete={(result, useLocalOcr) => {
+            const nextSettings = {
+              ...settings,
+              useLocalOcr,
+            };
+            saveSettings(nextSettings);
+            setSettings(nextSettings);
+            setShowUploadModal(false);
+            navigate('/jobs');
+          }}
+        />
       )}
     </div>
   );

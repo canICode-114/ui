@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle.jsx';
 
-function UploadPage({ auth, api, onLogout, theme, onThemeToggle }) {
+function UploadPage({ auth, api, onLogout }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [useLocalOcr, setUseLocalOcr] = useState(true);
@@ -60,7 +59,6 @@ function UploadPage({ auth, api, onLogout, theme, onThemeToggle }) {
             </Link>
           </nav>
 
-          <ThemeToggle theme={theme} onToggle={onThemeToggle} />
           <div className="sidebar-spacer" />
           <button className="ghost-button" onClick={onLogout}>
             Sign out

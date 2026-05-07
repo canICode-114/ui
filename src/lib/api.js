@@ -106,5 +106,5 @@ export const defaultSettings = {
   authBaseUrl: DEFAULT_AUTH_API,
   ocrBaseUrl: DEFAULT_OCR_API,
   useLocalOcr: true,
-  theme: 'dark',
+  themeMode: 'system',
 };
