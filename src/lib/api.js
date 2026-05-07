@@ -57,8 +57,20 @@ export function createApi(config) {
       });
       return parseResponse(response);
     },
-    async getJobOcrPages(uploadId, token) {
-      const response = await fetch(`${ocrBase}/api/jobs/${uploadId}/ocr-pages`, {
+    async updateJobFields({ uploadId, fields, token }) {
+      const response = await fetch(`${ocrBase}/api/jobs/${uploadId}/fields`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fields }),
+      });
+      return parseResponse(response);
+    },
+    async verifyJob({ uploadId, token }) {
+      const response = await fetch(`${ocrBase}/api/jobs/${uploadId}/verify`, {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
       return parseResponse(response);

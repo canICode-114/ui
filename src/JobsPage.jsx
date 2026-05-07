@@ -103,6 +103,7 @@ function JobsPage({ auth, api, onLogout, theme, onThemeToggle, settings, setSett
                       <th>File</th>
                       <th>Created</th>
                       <th>Status</th>
+                      <th>Verified</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -113,6 +114,11 @@ function JobsPage({ auth, api, onLogout, theme, onThemeToggle, settings, setSett
                         <td>
                           <span className={`status-pill status-${String(job.status).toLowerCase()}`}>
                             {job.status}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${job.humanVerified ? 'verified-pill' : 'unverified-pill'}`}>
+                            {job.humanVerified ? 'Verified' : 'Not verified'}
                           </span>
                         </td>
                       </tr>

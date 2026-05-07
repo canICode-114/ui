@@ -21,26 +21,6 @@ const FIELD_LABELS = {
   total_value: 'Total Value',
 };
 
-function parseJobResult(json) {
-  if (!json) return null;
-
-  try {
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
-
-function formatRawJson(json) {
-  if (!json) return '';
-
-  try {
-    return JSON.stringify(JSON.parse(json), null, 2);
-  } catch {
-    return json;
-  }
-}
-
 function getFileType(path) {
   if (!path) return 'unknown';
   const ext = path.split('.').pop()?.toLowerCase();
@@ -60,25 +40,17 @@ function formatLabel(key) {
   );
 }
 
-function getExtractedFields(result) {
-  if (!result || typeof result !== 'object') return [];
-
-  return Object.entries(result)
-    .filter(([, field]) => field && typeof field === 'object' && 'value' in field)
-    .map(([key, field]) => ({
-      key,
-      label: formatLabel(key),
-      value: field.value,
-      confidence: typeof field.confidence_value === 'number' ? field.confidence_value : null,
-      bbox: field.bbox_value || null,
-      page: Number.isInteger(field.page) ? field.page : null,
-    }));
+function formatFieldValue(value) {
+  if (value === null) return '—';
+  if (value === undefined || value === '') return '—';
+  return String(value);
 }
 
-function formatFieldValue(value) {
-  if (value === null) return 'null';
-  if (value === undefined) return '';
-  return String(value);
+function getProcessingMessage(status) {
+  if (status === 'FAILED') return 'Extraction failed.';
+  if (status === 'PROCESSING') return 'Processing...';
+  if (status === 'UPLOADED') return 'Queued for processing...';
+  return 'Processing...';
 }
 
 function getConfidenceTone(confidence) {
@@ -178,61 +150,55 @@ function getStageTransform(viewportSize, contentSize, bbox) {
 
 function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const viewerRef = useRef(null);
+  const canvasRef = useRef(null);
+
   const [job, setJob] = useState(null);
-  const [jobs, setJobs] = useState([]);
   const [error, setError] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [activeFieldKey, setActiveFieldKey] = useState('');
   const [activePage, setActivePage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
-  const [showRawJson, setShowRawJson] = useState(false);
-  const [ocrPages, setOcrPages] = useState([]);
   const [pdfPageSize, setPdfPageSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [viewerSize, setViewerSize] = useState({ width: 0, height: 0 });
-  const navigate = useNavigate();
-  const viewerRef = useRef(null);
-  const canvasRef = useRef(null);
+  const [editMode, setEditMode] = useState(false);
+  const [draftValues, setDraftValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([
-      api.getJob(id, auth.accessToken),
-      api.getJobs(auth.accessToken),
-      api.getJobOcrPages(id, auth.accessToken).catch(() => []),
-    ])
-      .then(([jobResult, jobsResult, ocrPagesResult]) => {
+    async function loadJob() {
+      try {
+        const jobResult = await api.getJob(id, auth.accessToken);
+
         if (!cancelled) {
           setJob(jobResult);
-          setJobs(jobsResult);
-          setOcrPages(ocrPagesResult);
           setError('');
         }
-      })
-      .catch((nextError) => {
+      } catch (nextError) {
         if (!cancelled) setError(nextError.message);
-      });
+      }
+    }
+
+    loadJob();
 
     return () => {
       cancelled = true;
     };
   }, [api, auth.accessToken, id]);
 
-  const currentIndex = useMemo(
-    () => jobs.findIndex((item) => String(item.uploadId) === String(id)),
-    [id, jobs],
-  );
-
-  const previousJob = useMemo(() => {
-    if (currentIndex === -1) return null;
-    return jobs[currentIndex - 1] || null;
-  }, [currentIndex, jobs]);
-
-  const nextJob = useMemo(() => {
-    if (currentIndex === -1) return null;
-    return jobs[currentIndex + 1] || null;
-  }, [currentIndex, jobs]);
+  useEffect(() => {
+    const nextDrafts = {};
+    for (const field of job?.extractedFields || []) {
+      nextDrafts[field.key] = field.value ?? '';
+    }
+    setDraftValues(nextDrafts);
+    setEditMode(false);
+  }, [job]);
 
   useEffect(() => {
     if (!job?.uploadId) {
@@ -275,9 +241,13 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
     return () => observer.disconnect();
   }, [previewUrl, job?.filePath, job?.fileName]);
 
-  const result = useMemo(() => parseJobResult(job?.resultJson), [job?.resultJson]);
-  const rawJson = useMemo(() => formatRawJson(job?.resultJson), [job?.resultJson]);
-  const extractedFields = useMemo(() => getExtractedFields(result), [result]);
+  const extractedFields = useMemo(() => {
+    return (job?.extractedFields || []).map((field) => ({
+      ...field,
+      label: formatLabel(field.key),
+    }));
+  }, [job?.extractedFields]);
+  const canReview = job?.status === 'DONE';
 
   useEffect(() => {
     if (!extractedFields.length) {
@@ -367,13 +337,13 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
   }, [activePage, fileType, previewUrl]);
 
   const activePageInfo = useMemo(
-    () => ocrPages.find((page) => page.pageNumber === activePage) || null,
-    [activePage, ocrPages],
+    () => (job?.ocrPages || []).find((page) => page.pageNumber === activePage) || null,
+    [activePage, job?.ocrPages],
   );
   const activeBbox = useMemo(() => {
-    if (!activeField || !hasUsableBbox(activeField.bbox)) return null;
+    if (!activeField || !hasUsableBbox(activeField.bboxValue)) return null;
     if (Number.isInteger(activeField.page) && activeField.page !== activePage) return null;
-    return activeField.bbox;
+    return activeField.bboxValue;
   }, [activeField, activePage]);
   const contentSize = fileType === 'pdf' ? pdfPageSize : imageSize;
   const renderedActiveBbox = useMemo(() => {
@@ -381,6 +351,61 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
     return expandBbox(scaledBbox, contentSize, 12);
   }, [activeBbox, activePageInfo, contentSize]);
   const stageTransform = getStageTransform(viewerSize, contentSize, renderedActiveBbox);
+
+  const dirtyFields = useMemo(() => {
+    return extractedFields.filter((field) => (draftValues[field.key] ?? '') !== (field.value ?? ''));
+  }, [draftValues, extractedFields]);
+
+  async function handleSave() {
+    if (!dirtyFields.length) {
+      setEditMode(false);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const updatedJob = await api.updateJobFields({
+        uploadId: id,
+        fields: dirtyFields.map((field) => ({
+          key: field.key,
+          value: draftValues[field.key] ?? '',
+        })),
+        token: auth.accessToken,
+      });
+      setJob(updatedJob);
+      setError('');
+      setEditMode(false);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleVerify() {
+    setVerifying(true);
+    try {
+      const verifiedJob = await api.verifyJob({
+        uploadId: id,
+        token: auth.accessToken,
+      });
+      setJob(verifiedJob);
+      setError('');
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  function handleCancelEdit() {
+    const nextDrafts = {};
+    for (const field of extractedFields) {
+      nextDrafts[field.key] = field.value ?? '';
+    }
+    setDraftValues(nextDrafts);
+    setEditMode(false);
+  }
 
   return (
     <div className="screen app-screen">
@@ -476,7 +501,7 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
                       <canvas ref={canvasRef} className="pdf-canvas" />
                       {hasUsableBbox(renderedActiveBbox) && (
                         <div
-                          className={`bbox-highlight confidence-${getConfidenceTone(activeField?.confidence)}`}
+                          className={`bbox-highlight confidence-${getConfidenceTone(activeField?.confidenceValue)}`}
                           style={{
                             left: renderedActiveBbox.xMin,
                             top: renderedActiveBbox.yMin,
@@ -513,7 +538,7 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
                       />
                       {hasUsableBbox(renderedActiveBbox) && (
                         <div
-                          className={`bbox-highlight confidence-${getConfidenceTone(activeField?.confidence)}`}
+                          className={`bbox-highlight confidence-${getConfidenceTone(activeField?.confidenceValue)}`}
                           style={{
                             left: renderedActiveBbox.xMin,
                             top: renderedActiveBbox.yMin,
@@ -536,61 +561,111 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
               </div>
 
               <div className="card detail-panel detail-data-panel">
-                <div className="detail-meta">
+                <div className="detail-meta detail-meta-spread">
                   <span className={`status-pill status-${String(job.status).toLowerCase()}`}>
                     {job.status}
+                  </span>
+                  <span className={`status-pill ${job.humanVerified ? 'verified-pill' : 'unverified-pill'}`}>
+                    {job.humanVerified ? 'Verified by human' : 'Awaiting verification'}
                   </span>
                 </div>
 
                 <div className="detail-panel-header detail-data-header">
-                  <h3>Extracted data</h3>
-                  {job.resultJson && (
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => setShowRawJson((value) => !value)}
-                    >
-                      {showRawJson ? 'Show fields' : 'View full JSON'}
-                    </button>
-                  )}
+                  <div>
+                    <h3>Extracted data</h3>
+                    <p className="detail-subcopy">
+                      {!canReview
+                        ? 'Extraction is still running. Review will unlock once OCR finishes.'
+                        : job.humanVerified && job.verifiedByUsername
+                        ? `Verified by ${job.verifiedByUsername}`
+                        : 'Review OCR output, correct it if needed, then verify the job.'}
+                    </p>
+                  </div>
                 </div>
 
-                {showRawJson ? (
-                  <pre className="json-view">{rawJson}</pre>
-                ) : extractedFields.length ? (
+                {canReview && (
+                  <div className="detail-action-row">
+                    {!editMode ? (
+                      <>
+                        <button className="secondary-button" type="button" onClick={() => setEditMode(true)}>
+                          Edit
+                        </button>
+                        <button
+                          className="primary-button"
+                          type="button"
+                          disabled={verifying || job.humanVerified}
+                          onClick={handleVerify}
+                        >
+                          {job.humanVerified ? 'Verified' : verifying ? 'Verifying...' : 'Verify'}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="primary-button"
+                          type="button"
+                          disabled={saving}
+                          onClick={handleSave}
+                        >
+                          {saving ? 'Updating...' : 'Update'}
+                        </button>
+                        <button className="ghost-button" type="button" disabled={saving} onClick={handleCancelEdit}>
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {canReview && extractedFields.length ? (
                   <div className="field-list" onMouseLeave={() => setActiveFieldKey('')}>
                     {extractedFields.map((field) => {
-                      const tone = getConfidenceTone(field.confidence);
+                      const tone = getConfidenceTone(field.confidenceValue);
                       const isActive = field.key === activeFieldKey;
                       const hasPreviewBbox =
                         (!Number.isInteger(field.page) || field.page === activePage) &&
                         hasUsableBbox(
                           scaleBboxToRenderedSize(
-                            field.bbox || null,
+                            field.bboxValue || null,
                             activePageInfo,
                             contentSize,
                           ),
                         );
 
                       return (
-                        <button
+                        <div
                           key={field.key}
                           className={`field-row confidence-${tone} ${isActive ? 'active' : ''}`}
-                          type="button"
                           onMouseEnter={() => setActiveFieldKey(field.key)}
-                          onFocus={() => setActiveFieldKey(field.key)}
                         >
                           <span className="field-label">
-                            {field.label}
-                            {hasPreviewBbox ? <span className="field-zoom-badge">Zoom</span> : null}
+                            <span>{field.label}</span>
+                            <span className="field-meta-row">
+                              {field.source && <span className="field-source-badge">{field.source}</span>}
+                            </span>
                           </span>
-                          <span className="field-value">{formatFieldValue(field.value)}</span>
-                        </button>
+
+                          {editMode ? (
+                            <input
+                              value={draftValues[field.key] ?? ''}
+                              onChange={(event) =>
+                                setDraftValues((current) => ({
+                                  ...current,
+                                  [field.key]: event.target.value,
+                                }))
+                              }
+                              onFocus={() => setActiveFieldKey(field.key)}
+                              placeholder={`Enter ${field.label.toLowerCase()}`}
+                            />
+                          ) : (
+                            <span className="field-value">{formatFieldValue(field.value)}</span>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="preview-placeholder">Processing...</div>
+                  <div className="preview-placeholder">{getProcessingMessage(job.status)}</div>
                 )}
               </div>
             </section>
@@ -598,23 +673,23 @@ function JobDetail({ auth, api, onLogout, theme, onThemeToggle }) {
         </main>
       </div>
 
-      {(previousJob || nextJob) && (
+      {(job?.previousJobId || job?.nextJobId) && (
         <div className="floating-job-nav">
-          {previousJob && (
+          {job?.previousJobId && (
             <button
               className="floating-nav-button secondary"
               type="button"
-              onClick={() => navigate(`/jobs/${previousJob.uploadId}`)}
+              onClick={() => navigate(`/jobs/${job.previousJobId}`)}
             >
               Previous job
             </button>
           )}
 
-          {nextJob && (
+          {job?.nextJobId && (
             <button
               className="floating-nav-button primary"
               type="button"
-              onClick={() => navigate(`/jobs/${nextJob.uploadId}`)}
+              onClick={() => navigate(`/jobs/${job.nextJobId}`)}
             >
               Next job
             </button>
