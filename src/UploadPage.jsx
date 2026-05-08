@@ -3,30 +3,30 @@ import { Link, useNavigate } from 'react-router-dom';
 
 function UploadPage({ auth, api, onLogout }) {
   const inputRef = useRef(null);
-  const [file, setFile] = useState(null);
-  const [useLocalOcr, setUseLocalOcr] = useState(true);
+  const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const navigate = useNavigate();
 
-  function handleFilePick(nextFile) {
-    if (!nextFile) return;
-    setFile(nextFile);
+  function handleFilePick(nextFiles) {
+    const pickedFiles = Array.from(nextFiles || []);
+    if (pickedFiles.length === 0) return;
+    setFiles(pickedFiles);
     setError('');
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!file) return;
+    if (files.length === 0) return;
 
     setBusy(true);
     setError('');
 
     try {
-      const result = await api.uploadInvoice({
-        file,
-        useLocalOcr,
+      await api.uploadInvoice({
+        files,
+        useLocalOcr: true,
         token: auth.accessToken,
       });
 
@@ -99,40 +99,39 @@ function UploadPage({ auth, api, onLogout }) {
                 onDrop={(event) => {
                   event.preventDefault();
                   setIsDragging(false);
-                  handleFilePick(event.dataTransfer.files?.[0] || null);
+                  handleFilePick(event.dataTransfer.files);
                 }}
               >
                 <input
                   ref={inputRef}
                   type="file"
+                  multiple
                   accept=".pdf,image/*"
-                  onChange={(event) => handleFilePick(event.target.files?.[0] || null)}
+                  onChange={(event) => handleFilePick(event.target.files)}
                 />
-                <span>{file ? file.name : 'Drag and drop invoice here'}</span>
+                <span>
+                  {files.length > 0
+                    ? `${files.length} invoice${files.length === 1 ? '' : 's'} selected`
+                    : 'Drag and drop invoices here'}
+                </span>
+                {files.length > 0 && (
+                  <small>{files.map((file) => file.name).join(', ')}</small>
+                )}
                 <small>or</small>
                 <button
                   type="button"
                   className="secondary-button choose-file-button"
                   onClick={() => inputRef.current?.click()}
                 >
-                  Choose file
+                  Choose files
                 </button>
                 <small>Supported: PDF, PNG, JPG, JPEG, WebP, BMP, GIF</small>
               </div>
 
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={useLocalOcr}
-                  onChange={(event) => setUseLocalOcr(event.target.checked)}
-                />
-                Use local OCR before Gemini extraction
-              </label>
-
               {error && <p className="notice error">{error}</p>}
 
-              <button className="primary-button stretch" disabled={!file || busy}>
-                {busy ? 'Uploading...' : 'Upload'}
+              <button className="primary-button stretch" disabled={files.length === 0 || busy}>
+                {busy ? 'Uploading...' : 'Upload invoices'}
               </button>
             </form>
           </section>

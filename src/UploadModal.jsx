@@ -17,16 +17,16 @@ function createFileFromUrl(url) {
 
 function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete }) {
   const inputRef = useRef(null);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [imageUrl, setImageUrl] = useState('');
-  const [useLocalOcr, setUseLocalOcr] = useState(defaultUseLocalOcr);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
 
-  function handleFilePick(nextFile) {
-    if (!nextFile) return;
-    setFile(nextFile);
+  function handleFilePick(nextFiles) {
+    const pickedFiles = Array.from(nextFiles || []);
+    if (pickedFiles.length === 0) return;
+    setFiles(pickedFiles);
     setImageUrl('');
     setError('');
   }
@@ -39,7 +39,8 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
 
     try {
       const nextFile = await createFileFromUrl(imageUrl.trim());
-      setFile(nextFile);
+      setFiles((current) => [...current, nextFile]);
+      setImageUrl('');
     } catch (nextError) {
       setError(nextError.message);
     } finally {
@@ -49,18 +50,18 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!file) return;
+    if (files.length === 0) return;
 
     setBusy(true);
     setError('');
 
     try {
       const result = await api.uploadInvoice({
-        file,
-        useLocalOcr,
+        files,
+        useLocalOcr: defaultUseLocalOcr,
         token: auth.accessToken,
       });
-      onUploadComplete(result, useLocalOcr);
+      onUploadComplete(result, defaultUseLocalOcr);
     } catch (nextError) {
       setError(nextError.message);
       setBusy(false);
@@ -73,7 +74,7 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
         <div className="modal-header">
           <div>
             <span className="eyebrow">New upload</span>
-            <h2>Add image</h2>
+            <h2>Add invoices</h2>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Close">
             x
@@ -94,25 +95,31 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
             onDrop={(event) => {
               event.preventDefault();
               setIsDragging(false);
-              handleFilePick(event.dataTransfer.files?.[0] || null);
+              handleFilePick(event.dataTransfer.files);
             }}
           >
             <input
               ref={inputRef}
               type="file"
+              multiple
               accept=".pdf,image/*"
-              onChange={(event) => handleFilePick(event.target.files?.[0] || null)}
+              onChange={(event) => handleFilePick(event.target.files)}
             />
-            <strong>{file ? file.name : 'Drag and drop an image here'}</strong>
+            <strong>
+              {files.length > 0
+                ? `${files.length} invoice${files.length === 1 ? '' : 's'} ready to upload`
+                : 'Drag and drop invoice files here'}
+            </strong>
+            {files.length > 0 && <small>{files.map((file) => file.name).join(', ')}</small>}
             <span>or</span>
             <button
               type="button"
               className="secondary-button choose-file-button"
               onClick={() => inputRef.current?.click()}
             >
-              Browse images
+              Browse files
             </button>
-            <small>Use PNG, JPG, SVG or PDF when available.</small>
+            <small>Use PDF, PNG, JPG, JPEG, WebP, BMP or GIF.</small>
           </div>
 
           <div className="modal-divider">
@@ -123,7 +130,7 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
             Import from URL
             <div className="url-import-row">
               <input
-                placeholder="Paste your image URL"
+                placeholder="Paste your invoice file URL"
                 value={imageUrl}
                 onChange={(event) => setImageUrl(event.target.value)}
               />
@@ -138,22 +145,13 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
             </div>
           </label>
 
-          <label className="checkbox-row">
-            <input
-              type="checkbox"
-              checked={useLocalOcr}
-              onChange={(event) => setUseLocalOcr(event.target.checked)}
-            />
-            Use local OCR before Gemini extraction
-          </label>
-
           {error && <p className="notice error">{error}</p>}
 
           <div className="modal-actions">
             <button type="button" className="ghost-button" onClick={onClose} disabled={busy}>
               Cancel
             </button>
-            <button className="primary-button" disabled={!file || busy}>
+            <button className="primary-button" disabled={files.length === 0 || busy}>
               {busy ? 'Uploading...' : 'Save'}
             </button>
           </div>

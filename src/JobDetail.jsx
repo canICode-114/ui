@@ -437,18 +437,17 @@ function JobDetail({
           onThemeModeChange={onThemeModeChange}
         />
 
-        <main className="workspace-content">
-          <header className="page-header detail-page-header">
-            <div className="detail-page-title">
-              <div>
-                <span className="eyebrow">Job detail</span>
-                <h1>{job?.fileName || `Upload #${id}`}</h1>
+        <main className="workspace-content detail-workspace-content">
+          {!job && (
+            <header className="page-header detail-page-header">
+              <div className="detail-page-title">
+                <div>
+                  <span className="eyebrow">Job detail</span>
+                  <h1>{`Upload #${id}`}</h1>
+                </div>
               </div>
-            </div>
-            <Link className="secondary-button button-link" to="/jobs">
-              Back to jobs
-            </Link>
-          </header>
+            </header>
+          )}
 
           {error && <p className="notice error">{error}</p>}
 
@@ -459,35 +458,34 @@ function JobDetail({
           ) : (
             <section className="detail-layout detail-layout-wide">
               <div className="card detail-panel detail-preview-panel">
-                <div className="detail-panel-header">
-                  <div>
-                    <h3>Uploaded file</h3>
-                    <p className="detail-subcopy">
-                      Hover an extracted value to zoom to its location in the document.
-                    </p>
+                <div className="detail-panel-header detail-preview-header">
+                  <div className="detail-preview-title-block">
+                    <h2>{job?.fileName || `Upload #${id}`}</h2>
                   </div>
 
-                  {fileType === 'pdf' && pageCount > 1 && (
-                    <div className="page-pill">
-                      <button
-                        className="icon-button"
-                        type="button"
-                        onClick={() => setActivePage((page) => clamp(page - 1, 1, pageCount))}
-                      >
-                        -
-                      </button>
-                      <span>
-                        Page {activePage} / {pageCount}
-                      </span>
-                      <button
-                        className="icon-button"
-                        type="button"
-                        onClick={() => setActivePage((page) => clamp(page + 1, 1, pageCount))}
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
+                  <div className="detail-preview-header-actions">
+                    {fileType === 'pdf' && pageCount > 1 && (
+                      <div className="page-pill">
+                        <button
+                          className="icon-button"
+                          type="button"
+                          onClick={() => setActivePage((page) => clamp(page - 1, 1, pageCount))}
+                        >
+                          -
+                        </button>
+                        <span>
+                          Page {activePage} / {pageCount}
+                        </span>
+                        <button
+                          className="icon-button"
+                          type="button"
+                          onClick={() => setActivePage((page) => clamp(page + 1, 1, pageCount))}
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {fileType === 'pdf' && previewUrl && (
@@ -563,61 +561,68 @@ function JobDetail({
               </div>
 
               <div className="card detail-panel detail-data-panel">
-                <div className="detail-meta detail-meta-spread">
-                  <span className={`status-pill status-${String(job.status).toLowerCase()}`}>
-                    {job.status}
-                  </span>
-                  <span className={`status-pill ${job.humanVerified ? 'verified-pill' : 'unverified-pill'}`}>
-                    {job.humanVerified ? 'Verified by human' : 'Awaiting verification'}
-                  </span>
-                </div>
-
-                <div className="detail-panel-header detail-data-header">
-                  <div>
-                    <h3>Extracted data</h3>
-                    <p className="detail-subcopy">
-                      {!canReview
-                        ? 'Extraction is still running. Review will unlock once OCR finishes.'
-                        : job.humanVerified && job.verifiedByUsername
-                        ? `Verified by ${job.verifiedByUsername}`
-                        : 'Review OCR output, correct it if needed, then verify the job.'}
-                    </p>
+                <div className="detail-data-top">
+                  <div className="detail-meta detail-meta-spread">
+                    <span className={`status-pill status-${String(job.status).toLowerCase()}`}>
+                      {job.status}
+                    </span>
+                    <span className={`status-pill ${job.humanVerified ? 'verified-pill' : 'unverified-pill'}`}>
+                      {job.humanVerified ? 'Verified by human' : 'Awaiting verification'}
+                    </span>
                   </div>
-                </div>
 
-                {canReview && (
-                  <div className="detail-action-row">
+                  <div className="detail-panel-header detail-data-header">
+                    <div>
+                      <h3>Extracted data</h3>
+                      {!canReview && (
+                        <p className="detail-subcopy">
+                          Extraction is still running. Review will unlock once OCR finishes.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {canReview && (
+                    <div className="detail-action-row">
                     {!editMode ? (
                       <>
-                        <button className="secondary-button" type="button" onClick={() => setEditMode(true)}>
+                        <button className="primary-button detail-action-button detail-edit-button" type="button" onClick={() => setEditMode(true)}>
                           Edit
                         </button>
-                        <button
-                          className="primary-button"
-                          type="button"
-                          disabled={verifying || job.humanVerified}
-                          onClick={handleVerify}
-                        >
-                          {job.humanVerified ? 'Verified' : verifying ? 'Verifying...' : 'Verify'}
-                        </button>
-                      </>
-                    ) : (
+                        {!job.humanVerified && (
+                          <button
+                            className="primary-button detail-action-button detail-verify-button"
+                            type="button"
+                            disabled={verifying}
+                            onClick={handleVerify}
+                            >
+                              {verifying ? 'Verifying...' : 'Verify'}
+                            </button>
+                          )}
+                        </>
+                      ) : (
                       <>
                         <button
-                          className="primary-button"
+                          className="primary-button detail-action-button"
                           type="button"
                           disabled={saving}
                           onClick={handleSave}
                         >
                           {saving ? 'Updating...' : 'Update'}
                         </button>
-                        <button className="ghost-button" type="button" disabled={saving} onClick={handleCancelEdit}>
+                        <button
+                          className="primary-button detail-action-button"
+                          type="button"
+                          disabled={saving}
+                          onClick={handleCancelEdit}
+                        >
                           Cancel
                         </button>
                       </>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {canReview && extractedFields.length ? (
                   <div className="field-list" onMouseLeave={() => setActiveFieldKey('')}>
@@ -677,27 +682,37 @@ function JobDetail({
 
       {(job?.previousJobId || job?.nextJobId) && (
         <div className="floating-job-nav">
-          {job?.previousJobId && (
+          {job?.previousJobId ? (
             <button
-              className="floating-nav-button secondary"
+              className="floating-nav-button primary-button"
               type="button"
               onClick={() => navigate(`/jobs/${job.previousJobId}`)}
             >
               Previous job
             </button>
+          ) : (
+            <span className="floating-nav-spacer" aria-hidden="true" />
           )}
 
-          {job?.nextJobId && (
+          {job?.nextJobId ? (
             <button
-              className="floating-nav-button primary"
+              className="floating-nav-button primary-button"
               type="button"
               onClick={() => navigate(`/jobs/${job.nextJobId}`)}
             >
               Next job
             </button>
+          ) : (
+            <span className="floating-nav-spacer" aria-hidden="true" />
           )}
         </div>
       )}
+
+      <div className="floating-back-nav">
+        <Link className="floating-nav-button primary-button button-link" to="/jobs">
+          Back to jobs
+        </Link>
+      </div>
 
       {showUploadModal && (
         <UploadModal

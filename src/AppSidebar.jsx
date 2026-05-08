@@ -177,19 +177,36 @@ function AppSidebar({
               </IconFrame>
             </button>
 
-            <button
-              className="rail-icon-button rail-upload-button"
-              type="button"
-              aria-label="New upload"
-              onClick={onUpload}
-            >
-              <IconFrame>
-                <UploadIcon />
-              </IconFrame>
-            </button>
+            <div className="rail-action-stack">
+              <Link
+                className={active === 'jobs' ? 'rail-icon-button active' : 'rail-icon-button'}
+                to="/jobs"
+                aria-label="Jobs"
+              >
+                <IconFrame>
+                  <JobsIcon />
+                </IconFrame>
+              </Link>
+
+              <button
+                className={active === 'upload' ? 'rail-icon-button active' : 'rail-icon-button'}
+                type="button"
+                aria-label="New upload"
+                onClick={onUpload}
+              >
+                <IconFrame>
+                  <UploadIcon />
+                </IconFrame>
+              </button>
+            </div>
 
             <div className="sidebar-account-area sidebar-account-area-rail" ref={accountAreaRef}>
-              <button className="rail-profile-button" type="button" onClick={() => setMenuOpen((value) => !value)}>
+              <button
+                className="rail-profile-button"
+                type="button"
+                aria-label="Open account menu"
+                onClick={() => setMenuOpen((value) => !value)}
+              >
                 <span>{String(auth.username || 'IF').slice(0, 2).toUpperCase()}</span>
               </button>
 

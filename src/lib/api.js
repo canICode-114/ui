@@ -75,9 +75,11 @@ export function createApi(config) {
       });
       return parseResponse(response);
     },
-    async uploadInvoice({ file, useLocalOcr, token }) {
+    async uploadInvoice({ files, useLocalOcr, token }) {
       const form = new FormData();
-      form.append('file', file);
+      files.forEach((file) => {
+        form.append('file', file);
+      });
       form.append('useLocalOcr', String(useLocalOcr));
 
       const response = await fetch(`${ocrBase}/api/invoice`, {
