@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { beginBackgroundUpload, finishBackgroundUpload } from './lib/storage.js';
 
 function createFileFromUrl(url) {
   return fetch(url)
@@ -15,7 +16,7 @@ function createFileFromUrl(url) {
     });
 }
 
-function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete }) {
+function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadQueued }) {
   const inputRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [imageUrl, setImageUrl] = useState('');
@@ -54,17 +55,19 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
 
     setBusy(true);
     setError('');
+    beginBackgroundUpload(files.length);
+    onUploadQueued(defaultUseLocalOcr);
 
     try {
-      const result = await api.uploadInvoice({
+      await api.uploadInvoice({
         files,
         useLocalOcr: defaultUseLocalOcr,
         token: auth.accessToken,
       });
-      onUploadComplete(result, defaultUseLocalOcr);
     } catch (nextError) {
-      setError(nextError.message);
-      setBusy(false);
+      console.error(nextError);
+    } finally {
+      finishBackgroundUpload(files.length);
     }
   }
 
@@ -136,7 +139,7 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadComplete 
               />
               <button
                 type="button"
-                className="secondary-button"
+                className="secondary-button import-button"
                 onClick={handleUrlImport}
                 disabled={busy || !imageUrl.trim()}
               >

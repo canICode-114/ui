@@ -70,6 +70,7 @@ function AppSidebar({
   onExpandedChange,
   themeMode,
   onThemeModeChange,
+  uploadInProgress = false,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const accountAreaRef = useRef(null);
@@ -102,7 +103,13 @@ function AppSidebar({
 
   const primaryActions = [
     { key: 'jobs', label: 'Jobs', icon: <JobsIcon />, to: '/jobs' },
-    { key: 'upload', label: 'New upload', icon: <UploadIcon />, onClick: onUpload },
+    {
+      key: 'upload',
+      label: uploadInProgress ? 'Uploading...' : 'New upload',
+      icon: <UploadIcon />,
+      onClick: onUpload,
+      disabled: uploadInProgress,
+    },
   ];
 
   function renderAccountMenu(className = 'sidebar-account-menu') {
@@ -191,8 +198,9 @@ function AppSidebar({
               <button
                 className={active === 'upload' ? 'rail-icon-button active' : 'rail-icon-button'}
                 type="button"
-                aria-label="New upload"
+                aria-label={uploadInProgress ? 'Uploading' : 'New upload'}
                 onClick={onUpload}
+                disabled={uploadInProgress}
               >
                 <IconFrame>
                   <UploadIcon />

@@ -4,7 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import AppSidebar from './AppSidebar.jsx';
 import UploadModal from './UploadModal.jsx';
-import { saveSettings } from './lib/storage.js';
+import { BACKGROUND_UPLOAD_EVENT, readBackgroundUploadCount, saveSettings } from './lib/storage.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -180,6 +180,7 @@ function JobDetail({
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [backgroundUploadCount, setBackgroundUploadCount] = useState(() => readBackgroundUploadCount());
 
   useEffect(() => {
     let cancelled = false;
@@ -203,6 +204,15 @@ function JobDetail({
       cancelled = true;
     };
   }, [api, auth.accessToken, id]);
+
+  useEffect(() => {
+    function syncBackgroundUploads() {
+      setBackgroundUploadCount(readBackgroundUploadCount());
+    }
+
+    window.addEventListener(BACKGROUND_UPLOAD_EVENT, syncBackgroundUploads);
+    return () => window.removeEventListener(BACKGROUND_UPLOAD_EVENT, syncBackgroundUploads);
+  }, []);
 
   useEffect(() => {
     const nextDrafts = {};
@@ -435,6 +445,7 @@ function JobDetail({
           onExpandedChange={setSidebarExpanded}
           themeMode={themeMode}
           onThemeModeChange={onThemeModeChange}
+          uploadInProgress={backgroundUploadCount > 0}
         />
 
         <main className="workspace-content detail-workspace-content">
@@ -720,7 +731,7 @@ function JobDetail({
           api={api}
           defaultUseLocalOcr={settings.useLocalOcr ?? true}
           onClose={() => setShowUploadModal(false)}
-          onUploadComplete={(result, useLocalOcr) => {
+          onUploadQueued={(useLocalOcr) => {
             const nextSettings = {
               ...settings,
               useLocalOcr,

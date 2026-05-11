@@ -7,14 +7,14 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/auth-api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8082',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/auth-api/, ''),
       },
-      '/ocr-api': {
+      '/backend-api': {
         target: 'http://localhost:8081',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/ocr-api/, ''),
+        rewrite: (path) => path.replace(/^\/backend-api/, ''),
       },
     },
   },

@@ -638,6 +638,61 @@ button {
   margin-bottom: 12px;
 }
 
+.page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.header-action-menu {
+  position: relative;
+}
+
+.header-action-menu summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.header-action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.header-action-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 12;
+  min-width: 220px;
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 4px;
+}
+
+.header-action-menu-panel button {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 11px 12px;
+}
+
+.header-action-menu-panel button:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.header-action-menu-panel button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .page-header h1,
 .auth-side h1,
 .upload-copy h2,
@@ -684,6 +739,38 @@ button {
   color: var(--text);
   border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 12px 16px;
+}
+
+.export-button {
+  background: linear-gradient(180deg, #fbfbfb, #ececec);
+  color: #111111;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.export-button:hover {
+  background: linear-gradient(180deg, #ffffff, #f0f0f0);
+}
+
+.import-button {
+  background: linear-gradient(180deg, #fbfbfb, #ececec);
+  color: #111111;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.import-button:hover {
+  background: linear-gradient(180deg, #ffffff, #f0f0f0);
+}
+
+:root[data-theme="light"] .export-button,
+:root[data-theme="light"] .import-button {
+  background: linear-gradient(180deg, #262626, #151515);
+  color: #f6f6f6;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="light"] .export-button:hover,
+:root[data-theme="light"] .import-button:hover {
+  background: linear-gradient(180deg, #303030, #1c1c1c);
 }
 
 .ghost-button {
@@ -1119,6 +1206,35 @@ input {
   overflow: auto;
 }
 
+.jobs-table-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.jobs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.jobs-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.jobs-select-column {
+  width: 52px;
+}
+
+.jobs-select-column input {
+  width: 18px;
+  height: 18px;
+}
+
 .jobs-table {
   width: 100%;
   border-collapse: collapse;
@@ -1138,6 +1254,28 @@ input {
 
 .jobs-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.03);
+}
+
+.danger-button {
+  background: #ff3b30;
+  color: #ffffff;
+  border-color: #ff3b30;
+}
+
+.danger-button:hover {
+  background: #e23329;
+}
+
+@media (max-width: 900px) {
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .header-action-menu-panel {
+    left: 0;
+    right: auto;
+  }
 }
 
 .status-pill {

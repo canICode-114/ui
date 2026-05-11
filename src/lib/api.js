@@ -1,9 +1,17 @@
 const DEFAULT_AUTH_API = '/auth-api';
-const DEFAULT_OCR_API = '/ocr-api';
+const DEFAULT_BACKEND_API = '/backend-api';
 
 function normalizeBaseUrl(url, fallback) {
   const value = (url || fallback).trim();
   return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+function extractFilenameFromDisposition(disposition) {
+  if (!disposition) return '';
+  const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utfMatch?.[1]) return decodeURIComponent(utfMatch[1]);
+  const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+  return plainMatch?.[1] || '';
 }
 
 async function parseResponse(response) {
@@ -24,11 +32,11 @@ async function parseResponse(response) {
 
 export function createApi(config) {
   const authBase = normalizeBaseUrl(config.authBaseUrl, DEFAULT_AUTH_API);
-  const ocrBase = normalizeBaseUrl(config.ocrBaseUrl, DEFAULT_OCR_API);
+  const backendBase = normalizeBaseUrl(config.apiBaseUrl, DEFAULT_BACKEND_API);
 
   return {
     authBase,
-    ocrBase,
+    backendBase,
     async signin(username, password) {
       const response = await fetch(`${authBase}/api/auth/signin`, {
         method: 'POST',
@@ -46,19 +54,19 @@ export function createApi(config) {
       return parseResponse(response);
     },
     async getJobs(token) {
-      const response = await fetch(`${ocrBase}/api/jobs`, {
+      const response = await fetch(`${backendBase}/api/jobs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return parseResponse(response);
     },
     async getJob(uploadId, token) {
-      const response = await fetch(`${ocrBase}/api/jobs/${uploadId}`, {
+      const response = await fetch(`${backendBase}/api/jobs/${uploadId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return parseResponse(response);
     },
     async updateJobFields({ uploadId, fields, token }) {
-      const response = await fetch(`${ocrBase}/api/jobs/${uploadId}/fields`, {
+      const response = await fetch(`${backendBase}/api/jobs/${uploadId}/fields`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -69,11 +77,47 @@ export function createApi(config) {
       return parseResponse(response);
     },
     async verifyJob({ uploadId, token }) {
-      const response = await fetch(`${ocrBase}/api/jobs/${uploadId}/verify`, {
+      const response = await fetch(`${backendBase}/api/jobs/${uploadId}/verify`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
       return parseResponse(response);
+    },
+    async deleteJobs({ uploadIds, token }) {
+      const response = await fetch(`${backendBase}/api/jobs`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uploadIds }),
+      });
+      return parseResponse(response);
+    },
+    async exportJobs({ uploadIds, format, token }) {
+      const response = await fetch(`${backendBase}/api/jobs/export`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uploadIds, format }),
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type') || '';
+        const payload = contentType.includes('application/json') ? await response.json() : await response.text();
+        const message =
+          typeof payload === 'string'
+            ? payload
+            : payload.message || payload.error || 'Export failed';
+        throw new Error(message);
+      }
+
+      return {
+        blob: await response.blob(),
+        fileName: extractFilenameFromDisposition(response.headers.get('content-disposition')) || `invoice-export.${format}`,
+      };
     },
     async uploadInvoice({ files, useLocalOcr, token }) {
       const form = new FormData();
@@ -82,7 +126,7 @@ export function createApi(config) {
       });
       form.append('useLocalOcr', String(useLocalOcr));
 
-      const response = await fetch(`${ocrBase}/api/invoice`, {
+      const response = await fetch(`${backendBase}/api/invoice`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -90,7 +134,7 @@ export function createApi(config) {
       return parseResponse(response);
     },
     async getFileBlob(uploadId, token) {
-      const response = await fetch(`${ocrBase}/api/files/${uploadId}`, {
+      const response = await fetch(`${backendBase}/api/files/${uploadId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -106,7 +150,7 @@ export function createApi(config) {
 
 export const defaultSettings = {
   authBaseUrl: DEFAULT_AUTH_API,
-  ocrBaseUrl: DEFAULT_OCR_API,
+  apiBaseUrl: DEFAULT_BACKEND_API,
   useLocalOcr: true,
   themeMode: 'system',
 };
