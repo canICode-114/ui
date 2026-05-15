@@ -1,5 +1,17 @@
 import { useRef, useState } from 'react';
-import { beginBackgroundUpload, finishBackgroundUpload } from './lib/storage.js';
+
+const MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024;
+const SUPPORTED_FILE_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/bmp',
+  'image/gif',
+  'image/tiff',
+]);
+const FILE_PREVIEW_LIMIT = 3;
 
 function createFileFromUrl(url) {
   return fetch(url)
@@ -16,34 +28,87 @@ function createFileFromUrl(url) {
     });
 }
 
-function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadQueued }) {
+function validateFiles(nextFiles) {
+  for (const file of nextFiles) {
+    if (!file) {
+      return 'One of the selected files could not be read.';
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      return `${file.name} is too large. Maximum file size is 50 MB.`;
+    }
+
+    const normalizedType = (file.type || '').toLowerCase();
+    if (normalizedType && !SUPPORTED_FILE_TYPES.has(normalizedType)) {
+      return `Unsupported file type for ${file.name}. Use PDF, PNG, JPG, JPEG, WebP, BMP, GIF, or TIFF.`;
+    }
+  }
+
+  return '';
+}
+
+function getUploadErrorMessage(nextError) {
+  if (nextError instanceof Error && nextError.message.trim()) {
+    return nextError.message;
+  }
+  return 'Upload failed. Please try again.';
+}
+
+function getFilePreviewText(files) {
+  if (files.length === 0) {
+    return '';
+  }
+
+  const previewNames = files.slice(0, FILE_PREVIEW_LIMIT).map((file) => file.name);
+  const remainingCount = files.length - previewNames.length;
+
+  if (remainingCount <= 0) {
+    return previewNames.join(', ');
+  }
+
+  return `${previewNames.join(', ')} and ${remainingCount} more...`;
+}
+
+function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadStart, onUploadingChange, onUploadError, onUploadComplete }) {
   const inputRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [imageUrl, setImageUrl] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+
+  function reportError(message) {
+    onUploadError?.(message);
+    onClose?.();
+  }
 
   function handleFilePick(nextFiles) {
     const pickedFiles = Array.from(nextFiles || []);
     if (pickedFiles.length === 0) return;
+    const validationMessage = validateFiles(pickedFiles);
+    if (validationMessage) {
+      reportError(validationMessage);
+      return;
+    }
     setFiles(pickedFiles);
     setImageUrl('');
-    setError('');
   }
 
   async function handleUrlImport() {
     if (!imageUrl.trim()) return;
 
     setBusy(true);
-    setError('');
 
     try {
       const nextFile = await createFileFromUrl(imageUrl.trim());
+      const validationMessage = validateFiles([nextFile]);
+      if (validationMessage) {
+        reportError(validationMessage);
+        return;
+      }
       setFiles((current) => [...current, nextFile]);
       setImageUrl('');
     } catch (nextError) {
-      setError(nextError.message);
+      reportError(getUploadErrorMessage(nextError));
     } finally {
       setBusy(false);
     }
@@ -54,20 +119,23 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadQueued })
     if (files.length === 0) return;
 
     setBusy(true);
-    setError('');
-    beginBackgroundUpload(files.length);
-    onUploadQueued(defaultUseLocalOcr);
+    onUploadingChange?.(true);
+    onUploadStart?.(defaultUseLocalOcr);
+    onClose?.();
 
     try {
-      await api.uploadInvoice({
+      const response = await api.uploadInvoice({
         files,
         useLocalOcr: defaultUseLocalOcr,
         token: auth.accessToken,
       });
+      onUploadComplete?.(response);
     } catch (nextError) {
+      const message = getUploadErrorMessage(nextError);
       console.error(nextError);
+      onUploadError?.(message);
     } finally {
-      finishBackgroundUpload(files.length);
+      onUploadingChange?.(false);
     }
   }
 
@@ -113,7 +181,11 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadQueued })
                 ? `${files.length} invoice${files.length === 1 ? '' : 's'} ready to upload`
                 : 'Drag and drop invoice files here'}
             </strong>
-            {files.length > 0 && <small>{files.map((file) => file.name).join(', ')}</small>}
+            {files.length > 0 && (
+              <small className="upload-file-preview" title={files.map((file) => file.name).join(', ')}>
+                {getFilePreviewText(files)}
+              </small>
+            )}
             <span>or</span>
             <button
               type="button"
@@ -147,8 +219,6 @@ function UploadModal({ auth, api, defaultUseLocalOcr, onClose, onUploadQueued })
               </button>
             </div>
           </label>
-
-          {error && <p className="notice error">{error}</p>}
 
           <div className="modal-actions">
             <button type="button" className="ghost-button" onClick={onClose} disabled={busy}>

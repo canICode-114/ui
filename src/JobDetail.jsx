@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import AppSidebar from './AppSidebar.jsx';
 import UploadModal from './UploadModal.jsx';
-import { BACKGROUND_UPLOAD_EVENT, readBackgroundUploadCount, saveSettings } from './lib/storage.js';
+import { saveSettings } from './lib/storage.js';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+const SUPPORT_EMAIL = 'help.veriflow@gmail.com';
+const SUPPORT_PHONE = '+917204770488';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('/pdf.worker.min.mjs', window.location.origin).toString();
 
 const FIELD_LABELS = {
   seller_gstin: 'Seller GSTIN',
@@ -156,6 +158,11 @@ function JobDetail({
   onLogout,
   settings,
   setSettings,
+  uploading,
+  setUploading,
+  uploadFeedback,
+  setUploadFeedback,
+  clearUploadFeedback,
   sidebarExpanded,
   setSidebarExpanded,
   themeMode,
@@ -167,8 +174,10 @@ function JobDetail({
   const canvasRef = useRef(null);
 
   const [job, setJob] = useState(null);
+  const [jobLoading, setJobLoading] = useState(true);
   const [error, setError] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [activeFieldKey, setActiveFieldKey] = useState('');
   const [activePage, setActivePage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
@@ -180,21 +189,25 @@ function JobDetail({
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [backgroundUploadCount, setBackgroundUploadCount] = useState(() => readBackgroundUploadCount());
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadJob() {
+      setJobLoading(true);
+      setJob(null);
+      setPreviewUrl('');
+      setError('');
       try {
         const jobResult = await api.getJob(id, auth.accessToken);
 
         if (!cancelled) {
           setJob(jobResult);
-          setError('');
         }
       } catch (nextError) {
         if (!cancelled) setError(nextError.message);
+      } finally {
+        if (!cancelled) setJobLoading(false);
       }
     }
 
@@ -204,15 +217,6 @@ function JobDetail({
       cancelled = true;
     };
   }, [api, auth.accessToken, id]);
-
-  useEffect(() => {
-    function syncBackgroundUploads() {
-      setBackgroundUploadCount(readBackgroundUploadCount());
-    }
-
-    window.addEventListener(BACKGROUND_UPLOAD_EVENT, syncBackgroundUploads);
-    return () => window.removeEventListener(BACKGROUND_UPLOAD_EVENT, syncBackgroundUploads);
-  }, []);
 
   useEffect(() => {
     const nextDrafts = {};
@@ -225,12 +229,14 @@ function JobDetail({
 
   useEffect(() => {
     if (!job?.uploadId) {
+      setPreviewLoading(false);
       setPreviewUrl('');
       return undefined;
     }
 
     let disposed = false;
     let objectUrl = '';
+    setPreviewLoading(true);
 
     api
       .getFileBlob(job.uploadId, auth.accessToken)
@@ -238,9 +244,13 @@ function JobDetail({
         if (disposed) return;
         objectUrl = URL.createObjectURL(blob);
         setPreviewUrl(objectUrl);
+        setPreviewLoading(false);
       })
       .catch(() => {
-        if (!disposed) setPreviewUrl('');
+        if (!disposed) {
+          setPreviewUrl('');
+          setPreviewLoading(false);
+        }
       });
 
     return () => {
@@ -271,6 +281,11 @@ function JobDetail({
     }));
   }, [job?.extractedFields]);
   const canReview = job?.status === 'DONE';
+  const uploadError = uploadFeedback?.message || '';
+  const creditsMessage = uploadFeedback?.creditsMessage || '';
+  const showCreditsContact = Boolean(uploadFeedback?.showCreditsContact);
+  const shouldShowInlineUploadError =
+    Boolean(uploadError) && !creditsMessage && !uploadError.toLowerCase().includes('credit');
 
   useEffect(() => {
     if (!extractedFields.length) {
@@ -438,6 +453,7 @@ function JobDetail({
       <div className={sidebarExpanded ? 'workspace-shell sidebar-expanded' : 'workspace-shell sidebar-collapsed'}>
         <AppSidebar
           auth={auth}
+          api={api}
           active="review"
           expanded={sidebarExpanded}
           onUpload={() => setShowUploadModal(true)}
@@ -445,11 +461,11 @@ function JobDetail({
           onExpandedChange={setSidebarExpanded}
           themeMode={themeMode}
           onThemeModeChange={onThemeModeChange}
-          uploadInProgress={backgroundUploadCount > 0}
+          uploadInProgress={uploading}
         />
 
         <main className="workspace-content detail-workspace-content">
-          {!job && (
+          {jobLoading && (
             <header className="page-header detail-page-header">
               <div className="detail-page-title">
                 <div>
@@ -461,10 +477,57 @@ function JobDetail({
           )}
 
           {error && <p className="notice error">{error}</p>}
+          {shouldShowInlineUploadError && <p className="notice error">{uploadError}</p>}
+
+          {creditsMessage && (
+            <div
+              className="modal-backdrop"
+              role="presentation"
+              onClick={() => setUploadFeedback((current) => ({ ...current, creditsMessage: '', showCreditsContact: false }))}
+            >
+              <section className="modal-card credits-modal" onClick={(event) => event.stopPropagation()}>
+                <div className="modal-header">
+                  <div>
+                    <span className="eyebrow">Credits</span>
+                    <h2>Credits needed</h2>
+                  </div>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    onClick={() => setUploadFeedback((current) => ({ ...current, creditsMessage: '', showCreditsContact: false }))}
+                    aria-label="Close"
+                  >
+                    x
+                  </button>
+                </div>
+                <p className="credits-modal-copy">{creditsMessage}</p>
+                {showCreditsContact && (
+                  <div className="credits-contact-card">
+                    <p className="credits-contact-title">Contact for credits</p>
+                    <a className="credits-contact-link" href={`mailto:${SUPPORT_EMAIL}`}>
+                      {SUPPORT_EMAIL}
+                    </a>
+                    <a className="credits-contact-link" href={`tel:${SUPPORT_PHONE}`}>
+                      {SUPPORT_PHONE}
+                    </a>
+                  </div>
+                )}
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => setUploadFeedback((current) => ({ ...current, showCreditsContact: true }))}
+                  >
+                    Get credits
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
 
           {!job ? (
             <section className="card detail-layout">
-              <div className="empty-state">Loading job...</div>
+              <div className="empty-state">{jobLoading ? 'Loading job...' : 'Unable to load job.'}</div>
             </section>
           ) : (
             <section className="detail-layout detail-layout-wide">
@@ -567,7 +630,9 @@ function JobDetail({
                 )}
 
                 {!previewUrl && fileType !== 'unknown' && (
-                  <div className="preview-placeholder">Loading file preview...</div>
+                  <div className="preview-placeholder">
+                    {previewLoading ? 'Loading file preview...' : 'Preview unavailable.'}
+                  </div>
                 )}
               </div>
 
@@ -691,7 +756,7 @@ function JobDetail({
         </main>
       </div>
 
-      {(job?.previousJobId || job?.nextJobId) && (
+      {!jobLoading && (job?.previousJobId || job?.nextJobId) && (
         <div className="floating-job-nav">
           {job?.previousJobId ? (
             <button
@@ -731,15 +796,29 @@ function JobDetail({
           api={api}
           defaultUseLocalOcr={settings.useLocalOcr ?? true}
           onClose={() => setShowUploadModal(false)}
-          onUploadQueued={(useLocalOcr) => {
+          onUploadingChange={setUploading}
+          onUploadError={(message) => {
+            setUploadFeedback({
+              message,
+              creditsMessage: message.toLowerCase().includes('credit') ? message : '',
+              showCreditsContact: false,
+            });
+          }}
+          onUploadComplete={(response) => {
+            setUploadFeedback({
+              message: response?.message || '',
+              creditsMessage: response?.creditsExhausted ? response.message || '0 credits, get credits' : '',
+              showCreditsContact: false,
+            });
+          }}
+          onUploadStart={(useLocalOcr) => {
             const nextSettings = {
               ...settings,
               useLocalOcr,
             };
+            clearUploadFeedback();
             saveSettings(nextSettings);
             setSettings(nextSettings);
-            setShowUploadModal(false);
-            navigate('/jobs');
           }}
         />
       )}

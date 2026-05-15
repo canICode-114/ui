@@ -4,7 +4,6 @@ import AuthPage from './AuthPage.jsx';
 import JobDetail from './JobDetail.jsx';
 import JobsPage from './JobsPage.jsx';
 import LandingPage from './LandingPage.jsx';
-import UploadPage from './UploadPage.jsx';
 import { createApi, defaultSettings } from './lib/api.js';
 import {
   clearAuth,
@@ -66,6 +65,12 @@ function App() {
     return nextSettings;
   });
   const [sidebarExpanded, setSidebarExpanded] = useState(readSidebarExpanded);
+  const [uploading, setUploading] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState({
+    message: '',
+    creditsMessage: '',
+    showCreditsContact: false,
+  });
 
   const api = useMemo(() => createApi(settings), [settings]);
   const auth = readAuth();
@@ -133,6 +138,14 @@ function App() {
     });
   }
 
+  function clearUploadFeedback() {
+    setUploadFeedback({
+      message: '',
+      creditsMessage: '',
+      showCreditsContact: false,
+    });
+  }
+
   return (
     <BrowserRouter>
       <Routes>
@@ -157,19 +170,6 @@ function App() {
           }
         />
         <Route
-          path="/upload"
-          element={
-            <ProtectedRoute auth={auth}>
-              <UploadPage
-                auth={auth}
-                api={api}
-                onLogout={handleLogout}
-                settings={settings}
-              />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/jobs"
           element={
             <ProtectedRoute auth={auth}>
@@ -179,6 +179,11 @@ function App() {
                 onLogout={handleLogout}
                 settings={settings}
                 setSettings={setSettings}
+                uploading={uploading}
+                setUploading={setUploading}
+                uploadFeedback={uploadFeedback}
+                setUploadFeedback={setUploadFeedback}
+                clearUploadFeedback={clearUploadFeedback}
                 sidebarExpanded={sidebarExpanded}
                 setSidebarExpanded={setSidebarExpanded}
                 themeMode={settings.themeMode}
@@ -197,6 +202,11 @@ function App() {
                 onLogout={handleLogout}
                 settings={settings}
                 setSettings={setSettings}
+                uploading={uploading}
+                setUploading={setUploading}
+                uploadFeedback={uploadFeedback}
+                setUploadFeedback={setUploadFeedback}
+                clearUploadFeedback={clearUploadFeedback}
                 sidebarExpanded={sidebarExpanded}
                 setSidebarExpanded={setSidebarExpanded}
                 themeMode={settings.themeMode}

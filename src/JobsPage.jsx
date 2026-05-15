@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppSidebar from './AppSidebar.jsx';
 import UploadModal from './UploadModal.jsx';
-import { BACKGROUND_UPLOAD_EVENT, readBackgroundUploadCount, saveSettings } from './lib/storage.js';
+import { saveSettings } from './lib/storage.js';
+
+const SUPPORT_EMAIL = 'help.veriflow@gmail.com';
+const SUPPORT_PHONE = '+917204770488';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -20,6 +23,11 @@ function JobsPage({
   onLogout,
   settings,
   setSettings,
+  uploading,
+  setUploading,
+  uploadFeedback,
+  setUploadFeedback,
+  clearUploadFeedback,
   sidebarExpanded,
   setSidebarExpanded,
   themeMode,
@@ -33,7 +41,6 @@ function JobsPage({
   const [exportingFormat, setExportingFormat] = useState('');
   const [error, setError] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [backgroundUploadCount, setBackgroundUploadCount] = useState(() => readBackgroundUploadCount());
   const navigate = useNavigate();
   const selectVisibleRef = useRef(null);
   const exportMenuRef = useRef(null);
@@ -77,15 +84,6 @@ function JobsPage({
       window.clearInterval(timer);
     };
   }, [api, auth.accessToken]);
-
-  useEffect(() => {
-    function syncBackgroundUploads() {
-      setBackgroundUploadCount(readBackgroundUploadCount());
-    }
-
-    window.addEventListener(BACKGROUND_UPLOAD_EVENT, syncBackgroundUploads);
-    return () => window.removeEventListener(BACKGROUND_UPLOAD_EVENT, syncBackgroundUploads);
-  }, []);
 
   const filteredJobs = useMemo(() => {
     if (filter === 'verified') {
@@ -179,6 +177,12 @@ function JobsPage({
     [jobs]
   );
 
+  const uploadError = uploadFeedback?.message || '';
+  const creditsMessage = uploadFeedback?.creditsMessage || '';
+  const showCreditsContact = Boolean(uploadFeedback?.showCreditsContact);
+  const shouldShowInlineUploadError =
+    Boolean(uploadError) && !creditsMessage && !uploadError.toLowerCase().includes('credit');
+
   return (
     <div className="screen app-screen">
       <div className="bg-orb bg-orb-a" />
@@ -187,6 +191,7 @@ function JobsPage({
       <div className={sidebarExpanded ? 'workspace-shell sidebar-expanded' : 'workspace-shell sidebar-collapsed'}>
         <AppSidebar
           auth={auth}
+          api={api}
           active="jobs"
           expanded={sidebarExpanded}
           onUpload={() => setShowUploadModal(true)}
@@ -194,7 +199,7 @@ function JobsPage({
           onExpandedChange={setSidebarExpanded}
           themeMode={themeMode}
           onThemeModeChange={onThemeModeChange}
-          uploadInProgress={backgroundUploadCount > 0}
+          uploadInProgress={uploading}
         />
 
         <main className="workspace-content">
@@ -236,12 +241,60 @@ function JobsPage({
                 className="primary-button button-link"
                 type="button"
                 onClick={() => setShowUploadModal(true)}
-                disabled={backgroundUploadCount > 0}
+                disabled={uploading}
               >
-                {backgroundUploadCount > 0 ? `Uploading... (${backgroundUploadCount})` : 'Upload'}
+                {uploading ? 'Uploading...' : 'Upload'}
               </button>
             </div>
           </header>
+
+          {shouldShowInlineUploadError && <p className="notice error">{uploadError}</p>}
+
+          {creditsMessage && (
+            <div
+              className="modal-backdrop"
+              role="presentation"
+              onClick={() => setUploadFeedback((current) => ({ ...current, creditsMessage: '', showCreditsContact: false }))}
+            >
+              <section className="modal-card credits-modal" onClick={(event) => event.stopPropagation()}>
+                <div className="modal-header">
+                  <div>
+                    <span className="eyebrow">Credits</span>
+                    <h2>Credits needed</h2>
+                  </div>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    onClick={() => setUploadFeedback((current) => ({ ...current, creditsMessage: '', showCreditsContact: false }))}
+                    aria-label="Close"
+                  >
+                    x
+                  </button>
+                </div>
+                <p className="credits-modal-copy">{creditsMessage}</p>
+                {showCreditsContact && (
+                  <div className="credits-contact-card">
+                    <p className="credits-contact-title">Contact for credits</p>
+                    <a className="credits-contact-link" href={`mailto:${SUPPORT_EMAIL}`}>
+                      {SUPPORT_EMAIL}
+                    </a>
+                    <a className="credits-contact-link" href={`tel:${SUPPORT_PHONE}`}>
+                      {SUPPORT_PHONE}
+                    </a>
+                  </div>
+                )}
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => setUploadFeedback((current) => ({ ...current, showCreditsContact: true }))}
+                  >
+                    Get credits
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
 
           <section className="card jobs-table-card">
             {error && <p className="notice error">{error}</p>}
@@ -344,14 +397,29 @@ function JobsPage({
           api={api}
           defaultUseLocalOcr={settings.useLocalOcr ?? true}
           onClose={() => setShowUploadModal(false)}
-          onUploadQueued={(useLocalOcr) => {
+          onUploadingChange={setUploading}
+          onUploadError={(message) => {
+            setUploadFeedback({
+              message,
+              creditsMessage: message.toLowerCase().includes('credit') ? message : '',
+              showCreditsContact: false,
+            });
+          }}
+          onUploadComplete={(response) => {
+            setUploadFeedback({
+              message: response?.message || '',
+              creditsMessage: response?.creditsExhausted ? response.message || '0 credits, get credits' : '',
+              showCreditsContact: false,
+            });
+          }}
+          onUploadStart={(useLocalOcr) => {
             const nextSettings = {
               ...settings,
               useLocalOcr,
             };
+            clearUploadFeedback();
             saveSettings(nextSettings);
             setSettings(nextSettings);
-            setShowUploadModal(false);
           }}
         />
       )}

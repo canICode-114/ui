@@ -59,6 +59,12 @@ export function createApi(config) {
       });
       return parseResponse(response);
     },
+    async getCredits(token) {
+      const response = await fetch(`${backendBase}/api/credits`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return parseResponse(response);
+    },
     async getJob(uploadId, token) {
       const response = await fetch(`${backendBase}/api/jobs/${uploadId}`, {
         headers: { Authorization: `Bearer ${token}` },

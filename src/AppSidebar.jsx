@@ -53,16 +53,9 @@ function LogoutIcon() {
   );
 }
 
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m9 6 6 6-6 6" />
-    </svg>
-  );
-}
-
 function AppSidebar({
   auth,
+  api,
   active = 'jobs',
   expanded,
   onUpload,
@@ -73,11 +66,45 @@ function AppSidebar({
   uploadInProgress = false,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [credits, setCredits] = useState(null);
+  const [creditsLoading, setCreditsLoading] = useState(false);
   const accountAreaRef = useRef(null);
 
   useEffect(() => {
     setMenuOpen(false);
   }, [expanded]);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadCredits() {
+      setCreditsLoading(true);
+      try {
+        const response = await api.getCredits(auth.accessToken);
+        if (!cancelled) {
+          setCredits(typeof response?.credits === 'number' ? response.credits : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setCredits(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setCreditsLoading(false);
+        }
+      }
+    }
+
+    loadCredits();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [api, auth.accessToken, menuOpen]);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -124,9 +151,15 @@ function AppSidebar({
               <strong>{auth.username}</strong>
               <p>Workspace user</p>
             </div>
-            <span className="sidebar-account-chevron">
-              <ChevronIcon />
-            </span>
+          </div>
+
+          <div className="sidebar-account-divider" />
+
+          <div className="sidebar-account-credits">
+            <span className="sidebar-account-credits-label">Credits</span>
+            <strong className="sidebar-account-credits-value">
+              {creditsLoading ? '...' : credits ?? '-'}
+            </strong>
           </div>
 
           <div className="sidebar-account-divider" />

@@ -440,26 +440,25 @@ button {
   gap: 14px;
 }
 
-.sidebar-account-chevron,
-.sidebar-account-link-chevron {
-  margin-left: auto;
-  width: 20px;
-  height: 20px;
-}
-
-.sidebar-account-chevron svg,
-.sidebar-account-link-chevron svg {
-  width: 100%;
-  height: 100%;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-}
-
 .sidebar-account-divider {
   height: 1px;
   margin: 14px 0;
   background: var(--border);
+}
+
+.sidebar-account-credits {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar-account-credits-label {
+  color: var(--muted);
+}
+
+.sidebar-account-credits-value {
+  font-weight: 700;
 }
 
 .theme-mode-group {
@@ -1123,6 +1122,45 @@ input {
   box-shadow: var(--shadow);
 }
 
+.credits-modal {
+  width: min(100%, 440px);
+}
+
+.credits-modal-copy {
+  margin: 0 0 20px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.credits-contact-card {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 20px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.credits-contact-title {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.credits-contact-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.credits-contact-link:hover {
+  text-decoration: underline;
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -1153,6 +1191,14 @@ input {
   justify-items: center;
   text-align: center;
   padding: 30px 22px;
+}
+
+.upload-file-preview {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-divider {
