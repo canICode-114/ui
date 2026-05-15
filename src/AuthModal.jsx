@@ -56,9 +56,7 @@ function AuthModal({ api, initialMode = 'signin', onAuthSuccess, onClose }) {
 
       <div className="auth-dialog-copy">
         <h1 id="auth-title">Log in or sign up</h1>
-        <p>
-          Access your OCR workspace, upload invoices, and review extracted results from one place.
-        </p>
+        <p>Upload invoices and review extracted results from one place.</p>
       </div>
 
       <div className="auth-dialog-tabs" role="tablist" aria-label="Authentication mode">

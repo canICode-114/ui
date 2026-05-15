@@ -24,10 +24,9 @@ function LandingPage({ api, auth, onAuthSuccess }) {
     <div className="screen landing-screen">
       <header className="landing-topbar">
         <div className="brand landing-brand">
-          <span className="brand-mark">IF</span>
+          <span className="brand-mark">VF</span>
           <div>
-            <strong>InvoiceFlow</strong>
-            <p>Invoice OCR workspace</p>
+            <strong>VeriFlow</strong>
           </div>
         </div>
 

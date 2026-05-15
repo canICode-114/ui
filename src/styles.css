@@ -132,7 +132,7 @@ button {
 }
 
 .sidebar-collapsed .workspace-content {
-  padding-left: 92px;
+  padding-left: 76px;
 }
 
 .app-sidebar {
@@ -144,8 +144,8 @@ button {
 }
 
 .app-sidebar-rail {
-  width: 72px;
-  padding: 20px 8px 16px;
+  width: 56px;
+  padding: 20px 4px 16px;
   border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   display: flex;

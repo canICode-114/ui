@@ -1,5 +1,5 @@
-const AUTH_STORAGE_KEY = 'invoiceflow.auth';
-const SETTINGS_STORAGE_KEY = 'invoiceflow.settings';
+const AUTH_STORAGE_KEY = 'veriflow.auth';
+const SETTINGS_STORAGE_KEY = 'veriflow.settings';
 
 export function readAuth() {
   try {

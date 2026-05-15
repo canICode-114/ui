@@ -33,7 +33,7 @@ function getInitialThemeMode(storedSettings) {
   return 'system';
 }
 
-const SIDEBAR_STATE_KEY = 'invoiceflow.sidebar.expanded';
+const SIDEBAR_STATE_KEY = 'veriflow.sidebar.expanded';
 
 function readSidebarExpanded() {
   if (typeof window === 'undefined') {

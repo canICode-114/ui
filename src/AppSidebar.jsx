@@ -145,7 +145,7 @@ function AppSidebar({
         <div className="sidebar-account-card">
           <div className="sidebar-account-summary">
             <div className="sidebar-account-avatar">
-              {String(auth.username || 'IF').slice(0, 2).toUpperCase()}
+              {String(auth.username || 'VF').slice(0, 2).toUpperCase()}
             </div>
             <div>
               <strong>{auth.username}</strong>
@@ -268,7 +268,7 @@ function AppSidebar({
                 <span className="app-sidebar-header-toggle app-sidebar-header-bars">
                   <MenuBarsIcon />
                 </span>
-                <strong>InvoiceFlow</strong>
+                <strong>VeriFlow</strong>
               </div>
             </button>
 
@@ -306,7 +306,7 @@ function AppSidebar({
 
               <button className="sidebar-account-trigger" type="button" onClick={() => setMenuOpen((value) => !value)}>
                 <div className="sidebar-account-avatar">
-                  {String(auth.username || 'IF').slice(0, 2).toUpperCase()}
+                  {String(auth.username || 'VF').slice(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <strong>{auth.username}</strong>

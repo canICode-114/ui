@@ -205,7 +205,6 @@ function JobsPage({
         <main className="workspace-content">
           <header className="page-header">
             <div>
-              <span className="eyebrow">Jobs page</span>
               <h1>All invoice extraction jobs.</h1>
             </div>
             <div className="page-header-actions">

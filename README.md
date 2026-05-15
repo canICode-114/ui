@@ -1,4 +1,4 @@
-# InvoiceFlow UI
+# VeriFlow UI
 
 Version 1 React UI for the invoice extraction service.
 
